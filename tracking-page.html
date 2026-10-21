@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  HRUDAI STORE KART - PARCEL TRACKING PAGE
+  ============================================================================
+  A standalone tracking page. Works embedded in a website or on its own.
+
+  HOW TO USE
+  ----------
+  1) PARCEL DATA
+     The page looks for a file called  tracking_data.json  next to it and, if
+     found, shows those parcels. If not found it shows built-in sample data.
+     Generate the real file with the tracker script:
+
+         python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
+
+     Put tracking_data.json in the same folder as this HTML file.
+
+  2) GOOGLE ADS (AdSense)
+     Scroll to the CONFIG object in the <script> at the bottom and set:
+         adSenseClient : "ca-pub-XXXXXXXXXXXXXXXX"   <- your AdSense publisher ID
+         adSlots.top / .bottom / .sidebar            <- ad unit slot IDs
+     Until you paste a real publisher ID, the page shows neat placeholder
+     boxes in each ad position instead of live ads, so nothing breaks.
+     To create ad units: AdSense > Ads > By ad unit > Display ads > create,
+     then copy the "data-ad-slot" number for each.
+
+  3) STORE LINKS
+     The two promo cards link to hsk2020.in and hsk.co.in. Edit the STORES
+     array in CONFIG to change wording, colours or links.
+
+  No build step, no dependencies. Just open the file.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track Your Order | Hrudai Store Kart</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e7c66'/%3E%3Cpath d='M7 8h10l-1 8.2a1.6 1.6 0 0 1-1.6 1.4H9.6A1.6 1.6 0 0 1 8 16.2z' fill='none' stroke='white' stroke-width='1.6'/%3E%3Cpath d='M9.4 8a2.6 2.6 0 0 1 5.2 0' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<meta name="description" content="Track your Hrudai Store Kart parcel in real time. Shop fashion at hsk2020.in and organic products at hsk.co.in.">
+<style>
+  :root{
+    --brand:#0e7c66;
+    --brand-dark:#0a5c4c;
+    --brand-soft:#e6f4f0;
+    --accent:#f59e0b;
+    --fashion:#db2777;
+    --organic:#16a34a;
+    --ink:#1f2937;
+    --muted:#6b7280;
+    --line:#e5e7eb;
+    --bg:#f6f8f9;
+    --card:#ffffff;
+    --ok:#15803d;
+    --warn:#b45309;
+    --info:#1d4ed8;
+    --err:#b91c1c;
+    --radius:16px;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 8px 24px -12px rgba(16,24,40,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 18px}
+
+  /* ---------- header ---------- */
+  header.site{
+    background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);
+    color:#fff;padding:16px 0;
+  }
+  .head-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{
+    display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff;font-weight:800;
+  }
+  .logo .mark{
+    width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.16);
+    display:grid;place-items:center;font-size:20px;border:1px solid rgba(255,255,255,.25);
+  }
+  .logo .name{font-size:19px;letter-spacing:.2px;line-height:1.1}
+  .logo .sub{font-size:12px;font-weight:500;opacity:.85;display:block}
+  .head-links{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .head-links a{
+    text-decoration:none;font-size:13.5px;font-weight:600;padding:8px 13px;border-radius:999px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);transition:.15s;
+  }
+  .head-links a:hover{background:rgba(255,255,255,.22)}
+
+  /* ---------- hero / tracker ---------- */
+  .hero{padding:34px 0 8px;text-align:center}
+  .hero h1{font-size:30px;margin:0 0 6px;letter-spacing:-.4px}
+  .hero p{margin:0 auto;color:var(--muted);max-width:560px}
+  .track-box{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:20px;margin:20px auto 0;max-width:720px;
+  }
+  .track-form{display:flex;gap:10px;flex-wrap:wrap}
+  .track-form input{
+    flex:1 1 260px;min-width:0;padding:14px 16px;font-size:16px;border-radius:12px;
+    border:1.5px solid var(--line);outline:none;transition:.15s;font-family:inherit;
+  }
+  .track-form input:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .btn{
+    padding:14px 22px;font-size:15.5px;font-weight:700;border-radius:12px;border:0;cursor:pointer;
+    background:var(--brand);color:#fff;font-family:inherit;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:var(--brand-dark)}
+  .btn.ghost{background:var(--brand-soft);color:var(--brand-dark)}
+  .btn.ghost:hover{background:#d5ebe5}
+  .hint{font-size:13px;color:var(--muted);margin:12px 2px 0;text-align:left}
+
+  /* ---------- result ---------- */
+  .result{margin-top:18px;text-align:left;display:none}
+  .result.show{display:block;animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .res-card{
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);
+  }
+  .res-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:16px;border-bottom:1px solid var(--line);background:#fcfdfd}
+  .res-top .awb{font-weight:800;font-size:16px}
+  .res-top .cour{font-size:13px;color:var(--muted)}
+  .res-meta{margin-left:auto;font-size:13px;color:var(--muted);text-align:right}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;
+    padding:5px 11px;border-radius:999px;border:1px solid transparent;
+  }
+  .badge.ok{background:#dcfce7;color:var(--ok);border-color:#bbf7d0}
+  .badge.warn{background:#fef3c7;color:var(--warn);border-color:#fde68a}
+  .badge.info{background:#dbeafe;color:var(--info);border-color:#bfdbfe}
+  .badge.mute{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+  .badge.err{background:#fee2e2;color:var(--err);border-color:#fecaca}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+
+  .timeline{padding:8px 16px 16px}
+  .tl-item{display:flex;gap:14px;padding:11px 0;position:relative}
+  .tl-item:not(:last-child):before{
+    content:"";position:absolute;left:7px;top:26px;bottom:-6px;width:2px;background:var(--line);
+  }
+  .tl-dot{
+    width:16px;height:16px;border-radius:50%;flex:0 0 16px;margin-top:3px;
+    background:#fff;border:3px solid var(--brand);z-index:1;
+  }
+  .tl-item:first-child .tl-dot{border-color:var(--brand);background:var(--brand)}
+  .tl-body{flex:1;min-width:0}
+  .tl-act{font-weight:600;font-size:14.5px}
+  .tl-sub{font-size:12.5px;color:var(--muted)}
+  .res-actions{padding:0 16px 16px;display:flex;gap:10px;flex-wrap:wrap}
+  .res-actions a{text-decoration:none}
+
+  /* ---------- not found / courier handoff ---------- */
+  .notfound{display:none}
+  .notfound.show{display:block;margin-top:16px;animation:pop .25s ease}
+  .nf-card{border:1px solid #fde68a;background:#fffbeb;border-radius:14px;padding:16px 18px;text-align:left}
+  .nf-card h3{margin:0 0 6px;font-size:16px;color:#92400e}
+  .nf-card p{margin:0 0 12px;font-size:13.5px;color:#78350f}
+  .courier-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .courier-links a{text-decoration:none;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;
+    background:#fff;border:1px solid #e5e7eb;color:#374151;transition:.15s}
+  .courier-links a:hover{border-color:var(--brand);color:var(--brand-dark);background:var(--brand-soft)}
+  .nf-num{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#78350f}
+  .nf-num code{background:#fff;border:1px solid #fde68a;border-radius:7px;padding:4px 9px;font-size:13px}
+  .nf-num a{color:#78350f}
+  .copy-btn{cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:8px;
+    border:1px solid #e5e7eb;background:#fff;color:#374151;font-family:inherit}
+  .copy-btn:hover{border-color:var(--brand);color:var(--brand-dark)}
+
+  /* ---------- ad slots ---------- */
+  .ad-slot{margin:26px 0}
+  .ad-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;text-align:center;margin-bottom:6px}
+  .ad-ph{
+    border:1.5px dashed #cbd5e1;border-radius:14px;background:
+      repeating-linear-gradient(45deg,#fbfdfe,#fbfdfe 12px,#f3f7f9 12px,#f3f7f9 24px);
+    color:#94a3b8;display:grid;place-items:center;text-align:center;padding:22px;font-size:13.5px;
+  }
+  .ad-ph b{color:#64748b}
+  .ad-ph .lead{min-height:90px}
+  .ad-ph .rect{min-height:250px;max-width:336px;margin:0 auto}
+
+  /* ---------- promo cards ---------- */
+  .section-title{font-size:20px;font-weight:800;margin:30px 0 4px;letter-spacing:-.2px}
+  .section-sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+  .promos{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .promo{
+    border-radius:var(--radius);padding:22px;color:#fff;position:relative;overflow:hidden;
+    box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:190px;
+  }
+  .promo.fashion{background:linear-gradient(135deg,#db2777,#9d174d)}
+  .promo.organic{background:linear-gradient(135deg,#16a34a,#065f46)}
+  .promo .tag{
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+    background:rgba(255,255,255,.2);padding:4px 10px;border-radius:999px;align-self:flex-start;
+  }
+  .promo h3{margin:12px 0 6px;font-size:21px;letter-spacing:-.3px}
+  .promo p{margin:0 0 16px;font-size:14px;opacity:.94}
+  .promo .cta{
+    margin-top:auto;align-self:flex-start;text-decoration:none;font-weight:700;font-size:14.5px;
+    background:#fff;padding:11px 18px;border-radius:10px;transition:.15s;
+  }
+  .promo.fashion .cta{color:#9d174d}
+  .promo.organic .cta{color:#065f46}
+  .promo .cta:hover{transform:translateY(-1px);box-shadow:0 6px 16px -6px rgba(0,0,0,.4)}
+  .promo .glow{position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.12)}
+
+  /* ---------- shipments table ---------- */
+  .table-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .table-tools{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .table-tools input{
+    flex:1 1 220px;min-width:0;padding:11px 14px;border-radius:10px;border:1.5px solid var(--line);
+    font-size:14.5px;font-family:inherit;outline:none;
+  }
+  .table-tools input:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .count{font-size:13px;color:var(--muted);white-space:nowrap}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#fafbfc;position:sticky;top:0}
+  tbody tr:hover{background:#fafcfc;cursor:pointer}
+  td .tn{font-weight:700}
+  td .sub{font-size:12px;color:var(--muted)}
+  .scroll{max-height:420px;overflow:auto}
+  .no-rows{padding:26px;text-align:center;color:var(--muted)}
+
+  /* ---------- footer ---------- */
+  footer.site{margin-top:36px;background:#0f1720;color:#cbd5e1;padding:30px 0}
+  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:22px}
+  footer.site h4{color:#fff;margin:0 0 10px;font-size:15px}
+  footer.site a{color:#cbd5e1;text-decoration:none}
+  footer.site a:hover{color:#fff;text-decoration:underline}
+  .foot-list{list-style:none;padding:0;margin:0;font-size:14px;display:grid;gap:7px}
+  .foot-bottom{border-top:1px solid #24303c;margin-top:22px;padding-top:16px;font-size:12.5px;color:#94a3b8;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+  @media(max-width:720px){
+    .promos{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr}
+    .hero h1{font-size:24px}
+    .res-meta{margin-left:0;text-align:left;width:100%}
+    th:nth-child(4),td:nth-child(4){display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap head-row">
+    <a class="logo" href="#top">
+      <span class="mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></span>
+      <span class="name">Hrudai Store Kart<span class="sub">Track your order</span></span>
+    </a>
+    <nav class="head-links">
+      <a href="https://hsk2020.in" target="_blank" rel="noopener">Fashion &amp; Accessories</a>
+      <a href="https://hsk.co.in" target="_blank" rel="noopener">Organic Products</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+
+    <section class="hero">
+      <h1>Track your parcel</h1>
+      <p>Enter your tracking number (AWB) to see the latest status of your Hrudai Store Kart shipment.</p>
+
+      <div class="track-box">
+        <form class="track-form" id="trackForm" autocomplete="off">
+          <input id="tnInput" type="text" placeholder="e.g. 1234567890 or DEMO123456789" aria-label="Tracking number">
+          <button class="btn" type="submit">Track</button>
+          <button class="btn ghost" type="button" id="clearBtn">Show all</button>
+        </form>
+        <p class="hint" id="sourceHint"></p>
+
+        <div class="result" id="result"></div>
+        <div class="notfound" id="notFound">
+          <div class="nf-card">
+            <h3 id="nfTitle">We couldn't find that tracking number</h3>
+            <p>This page lists the shipments we've published. To check any number, open it on the courier's own tracking page:</p>
+            <div class="courier-links" id="courierLinks"></div>
+            <div class="nf-num">
+              <span>Tracking number:</span><code id="nfCode"></code>
+              <button type="button" class="copy-btn" id="copyBtn">Copy</button>
+              <span>or email us at <a href="mailto:hrudaistorekart2020@gmail.com">hrudaistorekart2020@gmail.com</a>.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Google AdSense: top leaderboard -->
+    <div class="ad-slot">
+      <div class="ad-label">Advertisement</div>
+      <div id="ad-top"></div>
+    </div>
+
+    <section>
+      <h2 class="section-title">Shop while you wait</h2>
+      <p class="section-sub">Everything we ship comes from our own two stores.</p>
+      <div class="promos" id="promos"></div>
+    </section>
+
+    <section>
+      <h2 class="section-title">All shipments</h2>
+      <p class="section-sub">Click any row to see its full scan history.</p>
+      <div class="table-card">
+        <div class="table-tools">
+          <input id="filterInput" type="text" placeholder="Filter by tracking number, courier or status...">
+          <span class="count" id="count"></span>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr><th>Tracking no.</th><th>Courier</th><th>Status</th><th>Last update</th></tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Google AdSense: bottom leaderboard -->
+    <div class="ad-slot">
+      <div class="ad-label">Advertisement</div>
+      <div id="ad-bottom"></div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <h4>Hrudai Store Kart</h4>
+        <p style="margin:0;font-size:14px;color:#cbd5e1">Fashion, accessories and organic products, shipped across India from Visakhapatnam.</p>
+      </div>
+      <div>
+        <h4>Our stores</h4>
+        <ul class="foot-list">
+          <li><a href="https://hsk2020.in" target="_blank" rel="noopener">hsk2020.in &mdash; Fashion</a></li>
+          <li><a href="https://hsk.co.in" target="_blank" rel="noopener">hsk.co.in &mdash; Organic</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Need help?</h4>
+        <ul class="foot-list">
+          <li><a href="mailto:hrudaistorekart2020@gmail.com">hrudaistorekart2020@gmail.com</a></li>
+          <li><a href="tel:+918978468766">+91 89784 68766</a></li>
+          <li><a href="tel:+918074896216">+91 80748 96216</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; <span id="year"></span> Hrudai Store Kart. All rights reserved.</span>
+      <span>Tracking data updates as the courier scans your parcel.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ==========================================================================
+   CONFIG - edit these
+   ========================================================================== */
+const CONFIG = {
+  // Where the parcel data lives. The tracker script writes this file:
+  //   python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
+  dataFile: "tracking_data.json",
+
+  // ---- GOOGLE ADSENSE ----
+  // Paste your AdSense publisher ID below (AdSense > Account > Settings).
+  // Leave the placeholder until you have it; placeholder boxes show instead.
+  adSenseClient: "ca-pub-XXXXXXXXXXXXXXXX",
+  // Create three Display ad units in AdSense and paste their slot IDs here.
+  adSlots: {
+    top:    "",   // e.g. "1234567890"
+    bottom: ""    // e.g. "0987654321"
+  },
+
+  // ---- STORE PROMOS ----
+  stores: [
+    {
+      cls: "fashion",
+      tag: "Fashion & Accessories",
+      name: "Hrudai Store",
+      desc: "Premium clothing, jewellery and accessories - trendy picks, anime collections and more.",
+      url: "https://hsk2020.in",
+      cta: "Shop hsk2020.in"
+    },
+    {
+      cls: "organic",
+      tag: "Organic Products",
+      name: "HSK Organic",
+      desc: "Premium organic products delivered to your door - wholesome, natural and carefully packed.",
+      url: "https://hsk.co.in",
+      cta: "Shop hsk.co.in"
+    }
+  ]
+};
+
+/* ==========================================================================
+   Sample data - used only when tracking_data.json is not found
+   ========================================================================== */
+const SAMPLE_DATA = {
+  generated_at: "2026-10-21T12:00:00",
+  parcels: [
+    { tracking_number:"DEMO123456789", courier:"Delhivery", order_id:"ORD-1001",
+      status:"Delivered", delivered:"YES", last_location:"Visakhapatnam, AP",
+      last_update:"2026-10-20 14:30:00", status_detail:"Delivered to consignee",
+      track_url:"https://www.delhivery.com/track/package/DEMO123456789", provider:"demo",
+      events:[
+        {date:"2026-10-20 14:30:00", activity:"Delivered", location:"Visakhapatnam, AP"},
+        {date:"2026-10-20 08:10:00", activity:"Out for Delivery", location:"Visakhapatnam, AP"},
+        {date:"2026-10-19 21:40:00", activity:"In Transit", location:"Vijayawada Hub, AP"},
+        {date:"2026-10-18 19:05:00", activity:"Picked Up", location:"Hyderabad, TS"}
+      ]},
+    { tracking_number:"DEMO987654321", courier:"DTDC", order_id:"ORD-1002",
+      status:"Out for Delivery", delivered:"", last_location:"Vijayawada, AP",
+      last_update:"2026-10-21 09:05:00", status_detail:"",
+      track_url:"https://www.dtdc.in/tracking/tracking_results.asp", provider:"demo",
+      events:[
+        {date:"2026-10-21 09:05:00", activity:"Out for Delivery", location:"Vijayawada, AP"},
+        {date:"2026-10-20 22:15:00", activity:"Arrived at Hub", location:"Vijayawada, AP"},
+        {date:"2026-10-19 18:00:00", activity:"In Transit", location:"Chennai, TN"}
+      ]},
+    { tracking_number:"DEMO555000111", courier:"Blue Dart", order_id:"ORD-1003",
+      status:"In Transit", delivered:"", last_location:"Mumbai, MH",
+      last_update:"2026-10-20 17:45:00", status_detail:"",
+      track_url:"https://www.bluedart.com/tracking", provider:"demo",
+      events:[
+        {date:"2026-10-20 17:45:00", activity:"In Transit", location:"Mumbai, MH"},
+        {date:"2026-10-19 11:20:00", activity:"Manifested", location:"Pune, MH"}
+      ]},
+    { tracking_number:"DEMO222333444", courier:"India Post", order_id:"ORD-1004",
+      status:"Manifested", delivered:"", last_location:"Hyderabad, TS",
+      last_update:"2026-10-19 10:00:00", status_detail:"",
+      track_url:"https://www.indiapost.gov.in", provider:"demo",
+      events:[
+        {date:"2026-10-19 10:00:00", activity:"Booked", location:"Hyderabad, TS"}
+      ]}
+  ]
+};
+
+/* ==========================================================================
+   App logic - you shouldn't need to edit below here
+   ========================================================================== */
+const $ = (s, r=document) => r.querySelector(s);
+let DATA = SAMPLE_DATA;
+
+function statusClass(p){
+  if(p.error) return "err";
+  const s=(p.status||"").toLowerCase();
+  if(p.delivered==="YES"||s.includes("deliver")) return s.includes("out for")?"info":"ok";
+  if(s.includes("out for")) return "info";
+  if(s.includes("transit")||s.includes("picked")||s.includes("arriv")) return "warn";
+  if(!s) return "mute";
+  return "mute";
+}
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+function renderPromos(){
+  $("#promos").innerHTML = CONFIG.stores.map(s => `
+    <div class="promo ${s.cls}">
+      <span class="glow"></span>
+      <span class="tag">${esc(s.tag)}</span>
+      <h3>${esc(s.name)}</h3>
+      <p>${esc(s.desc)}</p>
+      <a class="cta" href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.cta)} &rarr;</a>
+    </div>`).join("");
+}
+
+function rowHTML(p){
+  const cls = statusClass(p);
+  const status = p.error ? "Unavailable" : (p.status || "-");
+  return `<tr data-tn="${esc(p.tracking_number)}">
+    <td><span class="tn">${esc(p.tracking_number)}</span>${p.order_id?`<div class="sub">${esc(p.order_id)}</div>`:""}</td>
+    <td>${esc(p.courier||"-")}</td>
+    <td><span class="badge ${cls}"><span class="dot"></span>${esc(status)}</span></td>
+    <td>${esc(p.last_update||"-")}${p.last_location?`<div class="sub">${esc(p.last_location)}</div>`:""}</td>
+  </tr>`;
+}
+
+function renderTable(filter=""){
+  const f=filter.trim().toLowerCase();
+  const rows=DATA.parcels.filter(p=>!f ||
+    (p.tracking_number||"").toLowerCase().includes(f) ||
+    (p.courier||"").toLowerCase().includes(f) ||
+    (p.status||"").toLowerCase().includes(f));
+  $("#tbody").innerHTML = rows.length
+    ? rows.map(rowHTML).join("")
+    : `<tr><td colspan="4" class="no-rows">No shipments match "${esc(filter)}".</td></tr>`;
+  $("#count").textContent = `${rows.length} of ${DATA.parcels.length} shipments`;
+}
+
+function renderResult(p){
+  const box=$("#result");
+  if(!p){box.classList.remove("show");box.innerHTML="";return;}
+  const cls=statusClass(p);
+  const status = p.error ? "Status unavailable" : (p.status||"-");
+  const events=(p.events||[]).slice().reverse();
+  box.innerHTML=`
+    <div class="res-card">
+      <div class="res-top">
+        <div>
+          <div class="awb">${esc(p.tracking_number)}</div>
+          <div class="cour">${esc(p.courier||"")}${p.order_id?" &middot; "+esc(p.order_id):""}</div>
+        </div>
+        <div class="res-meta">
+          <span class="badge ${cls}"><span class="dot"></span>${esc(status)}</span>
+          ${p.last_update?`<div style="margin-top:6px">Updated ${esc(p.last_update)}</div>`:""}
+        </div>
+      </div>
+      ${events.length?`<div class="timeline">${events.map((e,i)=>`
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-body">
+            <div class="tl-act">${esc(e.activity||"-")}</div>
+            <div class="tl-sub">${esc(e.date||"")}${e.location?" &middot; "+esc(e.location):""}</div>
+          </div>
+        </div>`).join("")}</div>`:
+        `<div class="timeline"><div class="tl-item"><div class="tl-dot"></div><div class="tl-body">
+           <div class="tl-act">${esc(p.status_detail||status)}</div>
+           <div class="tl-sub">${esc(p.last_location||"")}</div></div></div></div>`}
+      <div class="res-actions">
+        ${p.track_url?`<a class="btn ghost" href="${esc(p.track_url)}" target="_blank" rel="noopener">Track on courier site</a>`:""}
+        <a class="btn ghost" href="#all">See all shipments</a>
+      </div>
+    </div>`;
+  box.classList.add("show");
+  box.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function findParcel(tn){
+  const t=(tn||"").trim().toLowerCase();
+  return DATA.parcels.find(p=>(p.tracking_number||"").toLowerCase()===t)
+      || DATA.parcels.find(p=>(p.tracking_number||"").toLowerCase().includes(t)&&t);
+}
+
+/* ---------- courier handoff for numbers we don't list ---------- */
+const COURIERS = [
+  {name:"Delhivery",               url:"https://www.delhivery.com/track/package/{tn}"},
+  {name:"Ekart",                   url:"https://ekartlogistics.com/track/{tn}"},
+  {name:"XpressBees",              url:"https://www.xpressbees.com/track?awb={tn}"},
+  {name:"DTDC",                    url:"https://www.dtdc.in/tracking/tracking_results.asp"},
+  {name:"Blue Dart",               url:"https://www.bluedart.com/tracking"},
+  {name:"India Post / Speed Post", url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx"}
+];
+function renderNotFound(tn){
+  const box=$("#notFound");
+  if(!tn){box.classList.remove("show");return;}
+  $("#nfTitle").textContent="We couldn't find "+tn+" in our shipment list";
+  $("#nfCode").textContent=tn;
+  $("#courierLinks").innerHTML=COURIERS.map(c=>{
+    const u=c.url.includes("{tn}")?c.url.replace("{tn}",encodeURIComponent(tn)):c.url;
+    return `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(c.name)} &rarr;</a>`;
+  }).join("");
+  box.classList.add("show");
+}
+
+/* ---------- ads ---------- */
+function adsConfigured(){
+  return CONFIG.adSenseClient && !CONFIG.adSenseClient.includes("XXXX");
+}
+function renderAds(){
+  const place=(el,size)=>{
+    if(adsConfigured()){
+      el.innerHTML=`<ins class="adsbygoogle" style="display:block" data-ad-client="${esc(CONFIG.adSenseClient)}"
+        data-ad-slot="${esc(size==='rect'?CONFIG.adSlots.bottom:CONFIG.adSlots.top)}"
+        data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+    }else{
+      el.innerHTML=`<div class="ad-ph"><div class="${size==='rect'?'rect':'lead'}">
+        <div><b>Google AdSense slot</b><br>Paste your publisher ID and ad slot ID in CONFIG to show ads here.</div>
+      </div></div>`;
+    }
+  };
+  place($("#ad-top"),"lead");
+  place($("#ad-bottom"),"lead");
+  if(adsConfigured()){
+    const s=document.createElement("script");
+    s.async=true;
+    s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client="+encodeURIComponent(CONFIG.adSenseClient);
+    s.crossOrigin="anonymous";
+    document.head.appendChild(s);
+    s.onload=()=>document.querySelectorAll("ins.adsbygoogle").forEach(()=>{
+      try{(adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}
+    });
+  }
+}
+
+/* ---------- boot ---------- */
+async function boot(){
+  renderPromos();
+  $("#year").textContent=new Date().getFullYear();
+
+  let usedSample=true;
+  try{
+    const r=await fetch(CONFIG.dataFile,{cache:"no-store"});
+    if(r.ok){ const j=await r.json(); if(j&&Array.isArray(j.parcels)&&j.parcels.length){DATA=j;usedSample=false;} }
+  }catch(e){ /* no data file (or file:// blocked) -> keep samples */ }
+
+  $("#sourceHint").textContent = usedSample
+    ? "Showing sample shipments. Run the tracker script with -o tracking_data.json to load your real parcels."
+    : `Showing ${DATA.parcels.length} shipments${DATA.generated_at?" (updated "+DATA.generated_at+")":""}.`;
+
+  renderTable("");
+  renderAds();
+
+  $("#trackForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const tn=$("#tnInput").value.trim();
+    const p=findParcel(tn);
+    renderResult(p||null);
+    renderNotFound(p?null:tn);
+  });
+  $("#clearBtn").addEventListener("click",()=>{
+    $("#tnInput").value=""; renderResult(null); renderNotFound(null);
+  });
+  $("#filterInput").addEventListener("input",e=>renderTable(e.target.value));
+  $("#tbody").addEventListener("click",e=>{
+    const tr=e.target.closest("tr[data-tn]"); if(!tr)return;
+    const p=findParcel(tr.getAttribute("data-tn"));
+    if(p){ renderNotFound(null); renderResult(p);
+      window.scrollTo({top:0,behavior:"smooth"}); }
+  });
+  $("#copyBtn").addEventListener("click",async()=>{
+    try{
+      await navigator.clipboard.writeText($("#nfCode").textContent);
+      $("#copyBtn").textContent="Copied";
+      setTimeout(()=>$("#copyBtn").textContent="Copy",1500);
+    }catch(e){}
+  });
+}
+boot();
+</script>
+</body>
+</html>
