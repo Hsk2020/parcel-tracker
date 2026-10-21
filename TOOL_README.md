@@ -277,6 +277,40 @@ var for it too.
 
 ---
 
+## Bulk-editing Delhivery shipments
+
+`edit_shipments.py` updates package details *after* manifestation via
+Delhivery's Edit Order API (`POST /api/p/edit`) — payment mode, COD amount,
+weight, dimensions and consignee details — for a whole list of waybills at once.
+
+Delhivery only accepts these edits while a parcel is **Manifested / In Transit /
+Pending / Scheduled**. It rejects them once the parcel is Delivered, Dispatched,
+RTO, DTO, Picked Up or Collected.
+
+```bash
+# always start with a dry run - it prints exactly what would be sent, no calls made
+python edit_shipments.py -i shipments_to_edit.csv --dry-run
+
+# real run against staging, then production
+python edit_shipments.py -i shipments_to_edit.csv -o edit_results.csv --env staging
+python edit_shipments.py -i shipments_to_edit.csv -o edit_results.csv --env production
+```
+
+Input CSV — only `waybill` is required; blank cells are skipped:
+
+```csv
+waybill,pt,cod,gm,shipment_length,shipment_width,shipment_height
+843000000001,COD,100,100.2,20,15,40.2
+843000000002,Pre-paid,,250,30,20,10
+```
+
+`pt` must be `COD` or `Pre-paid`. The token is read from `config.json`
+(`providers.delhivery.token`) or the `DELHIVERY_TOKEN` env var. Results are
+written to a CSV with the HTTP status, a success flag and Delhivery's message
+for each row.
+
+---
+
 ## Limitations and honest notes
 
 - **Delhivery and Shiprocket endpoints** follow their published API docs and

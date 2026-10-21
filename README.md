@@ -127,6 +127,7 @@ This is your call — just be aware of it before you publish real customer data.
 | `tracking_data.json` | The parcel data the page displays |
 | `.nojekyll` | Tells GitHub Pages to serve files as-is |
 | `track_parcels.py`, `adapters.py` | The tracker tool that builds `tracking_data.json` |
+| `edit_shipments.py`, `shipments_to_edit.csv` | Bulk-edit Delhivery shipment details (Edit Order API) |
 | `config.example.json` | Copy to `config.json` and add API credentials (never commit it) |
 | `parcels_sample.csv` | Example input for the tracker |
 | `TOOL_README.md` | Full documentation for the tracker tool |

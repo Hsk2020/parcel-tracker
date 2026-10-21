@@ -1,0 +1,4 @@
+waybill,pt,cod,gm,shipment_length,shipment_width,shipment_height
+843000000001,COD,100,100.2,20,15,40.2
+843000000002,Pre-paid,,250,30,20,10
+843000000003,COD,499,500,25,25,25
