@@ -151,11 +151,22 @@
   .res-actions{padding:0 16px 16px;display:flex;gap:10px;flex-wrap:wrap}
   .res-actions a{text-decoration:none}
 
-  .empty-note{
-    margin-top:16px;padding:14px 16px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;
-    color:#9a3412;font-size:14px;display:none;
-  }
-  .empty-note.show{display:block}
+  /* ---------- not found / courier handoff ---------- */
+  .notfound{display:none}
+  .notfound.show{display:block;margin-top:16px;animation:pop .25s ease}
+  .nf-card{border:1px solid #fde68a;background:#fffbeb;border-radius:14px;padding:16px 18px;text-align:left}
+  .nf-card h3{margin:0 0 6px;font-size:16px;color:#92400e}
+  .nf-card p{margin:0 0 12px;font-size:13.5px;color:#78350f}
+  .courier-links{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .courier-links a{text-decoration:none;font-size:13px;font-weight:600;padding:8px 12px;border-radius:9px;
+    background:#fff;border:1px solid #e5e7eb;color:#374151;transition:.15s}
+  .courier-links a:hover{border-color:var(--brand);color:var(--brand-dark);background:var(--brand-soft)}
+  .nf-num{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#78350f}
+  .nf-num code{background:#fff;border:1px solid #fde68a;border-radius:7px;padding:4px 9px;font-size:13px}
+  .nf-num a{color:#78350f}
+  .copy-btn{cursor:pointer;font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:8px;
+    border:1px solid #e5e7eb;background:#fff;color:#374151;font-family:inherit}
+  .copy-btn:hover{border-color:var(--brand);color:var(--brand-dark)}
 
   /* ---------- ad slots ---------- */
   .ad-slot{margin:26px 0}
@@ -261,7 +272,18 @@
         <p class="hint" id="sourceHint"></p>
 
         <div class="result" id="result"></div>
-        <div class="empty-note" id="emptyNote">We could not find that tracking number in this list. Please check the number and try again, or contact us below.</div>
+        <div class="notfound" id="notFound">
+          <div class="nf-card">
+            <h3 id="nfTitle">We couldn't find that tracking number</h3>
+            <p>This page lists the shipments we've published. To check any number, open it on the courier's own tracking page:</p>
+            <div class="courier-links" id="courierLinks"></div>
+            <div class="nf-num">
+              <span>Tracking number:</span><code id="nfCode"></code>
+              <button type="button" class="copy-btn" id="copyBtn">Copy</button>
+              <span>or email us at <a href="mailto:hrudaistorekart2020@gmail.com">hrudaistorekart2020@gmail.com</a>.</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -513,6 +535,27 @@ function findParcel(tn){
       || DATA.parcels.find(p=>(p.tracking_number||"").toLowerCase().includes(t)&&t);
 }
 
+/* ---------- courier handoff for numbers we don't list ---------- */
+const COURIERS = [
+  {name:"Delhivery",               url:"https://www.delhivery.com/track/package/{tn}"},
+  {name:"Ekart",                   url:"https://ekartlogistics.com/track/{tn}"},
+  {name:"XpressBees",              url:"https://www.xpressbees.com/track?awb={tn}"},
+  {name:"DTDC",                    url:"https://www.dtdc.in/tracking/tracking_results.asp"},
+  {name:"Blue Dart",               url:"https://www.bluedart.com/tracking"},
+  {name:"India Post / Speed Post", url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx"}
+];
+function renderNotFound(tn){
+  const box=$("#notFound");
+  if(!tn){box.classList.remove("show");return;}
+  $("#nfTitle").textContent="We couldn't find "+tn+" in our shipment list";
+  $("#nfCode").textContent=tn;
+  $("#courierLinks").innerHTML=COURIERS.map(c=>{
+    const u=c.url.includes("{tn}")?c.url.replace("{tn}",encodeURIComponent(tn)):c.url;
+    return `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(c.name)} &rarr;</a>`;
+  }).join("");
+  box.classList.add("show");
+}
+
 /* ---------- ads ---------- */
 function adsConfigured(){
   return CONFIG.adSenseClient && !CONFIG.adSenseClient.includes("XXXX");
@@ -563,21 +606,27 @@ async function boot(){
 
   $("#trackForm").addEventListener("submit",e=>{
     e.preventDefault();
-    const tn=$("#tnInput").value;
+    const tn=$("#tnInput").value.trim();
     const p=findParcel(tn);
-    $("#emptyNote").classList.toggle("show",!p);
     renderResult(p||null);
-    if(!p) $("#result").classList.remove("show");
+    renderNotFound(p?null:tn);
   });
   $("#clearBtn").addEventListener("click",()=>{
-    $("#tnInput").value=""; $("#emptyNote").classList.remove("show"); renderResult(null);
+    $("#tnInput").value=""; renderResult(null); renderNotFound(null);
   });
   $("#filterInput").addEventListener("input",e=>renderTable(e.target.value));
   $("#tbody").addEventListener("click",e=>{
     const tr=e.target.closest("tr[data-tn]"); if(!tr)return;
     const p=findParcel(tr.getAttribute("data-tn"));
-    if(p){ $("#emptyNote").classList.remove("show"); renderResult(p);
+    if(p){ renderNotFound(null); renderResult(p);
       window.scrollTo({top:0,behavior:"smooth"}); }
+  });
+  $("#copyBtn").addEventListener("click",async()=>{
+    try{
+      await navigator.clipboard.writeText($("#nfCode").textContent);
+      $("#copyBtn").textContent="Copied";
+      setTimeout(()=>$("#copyBtn").textContent="Copy",1500);
+    }catch(e){}
   });
 }
 boot();
