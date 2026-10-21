@@ -1,0 +1,23 @@
+{
+  "_comment": "Copy this file to config.json and fill in the credentials for the providers you actually have. Leave the rest blank. You can also set these via environment variables instead (env vars win). Never commit real keys to version control.",
+  "default_provider": "shiprocket",
+  "providers": {
+    "delhivery": {
+      "token": "",
+      "client_name": "",
+      "env": "production"
+    },
+    "shiprocket": {
+      "email": "",
+      "password": ""
+    },
+    "ship24": {
+      "api_key": ""
+    },
+    "trackingmore": {
+      "api_key": "",
+      "courier_code": ""
+    },
+    "manual": {}
+  }
+}

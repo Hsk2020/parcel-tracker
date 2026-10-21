@@ -1,0 +1,14 @@
+# Never commit real API credentials
+config.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Local tracker output (the page's data file is tracking_data.json, which we DO
+# want published - uncomment the next line if you'd rather keep it private)
+# tracking_data.json
+
+# Local outputs
+tracked*.csv
+tracked*.xlsx

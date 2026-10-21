@@ -1,0 +1,311 @@
+# Parcel Tracker
+
+Pull live tracking status for a list of parcels and write it back to a CSV or
+Excel file. One small tool, several couriers, pluggable adapters.
+
+You feed it a CSV of tracking numbers. It queries the courier or aggregator
+API(s) you have credentials for, and returns each parcel's current status,
+last scan location, last update time, a delivered flag and a clickable
+tracking URL.
+
+---
+
+## Why there is no single "track any Indian courier" API
+
+This matters before you start, because it decides which provider you pick:
+
+| Courier | Official API? | What you need |
+|---|---|---|
+| **Delhivery** | Yes | A merchant API token from your Delhivery account |
+| **Shiprocket** | Yes | Shiprocket account + API user (covers DTDC, Blue Dart, Ekart, XpressBees, Delhivery and more in one API) |
+| **Blue Dart** | Yes | Business account credentials |
+| **DTDC** | Yes | Business account credentials |
+| **India Post / Speed Post** | No public API | Bulk track-and-trace via corporate portal/SFTP with IP whitelisting, or go through an aggregator |
+| **Amazon / Flipkart shipping** | Not for sellers | Track via the marketplace panel or the shipping partner |
+
+There is no free public endpoint that covers all of them. So the practical
+setup is one of:
+
+1. **You ship through Shiprocket** → use the `shiprocket` provider. One login
+   covers every courier Shiprocket books.
+2. **You have a Delhivery account** → use the `delhivery` provider.
+3. **Mixed / no accounts** → use an aggregator (`ship24` or `trackingmore`),
+   which cover 1,500+ couriers including India Post, and have free trial tiers.
+4. **No credentials at all** → use the `manual` provider, which just builds the
+   official tracking URL for each parcel so a human can click through. No key
+   needed, works today.
+
+---
+
+## Install
+
+```bash
+cd parcel_tracker
+pip install -r requirements.txt
+```
+
+Requires Python 3.10+.
+
+---
+
+## Quick start (no credentials needed)
+
+Run it offline against fake data to see the output format:
+
+```bash
+python track_parcels.py --demo
+```
+
+Or generate clickable tracking URLs for real parcels with no API key:
+
+```bash
+python track_parcels.py -i parcels_sample.csv -o tracked.csv -p manual
+```
+
+---
+
+## Configure credentials
+
+Copy the example config and fill in only the providers you actually have:
+
+```bash
+cp config.example.json config.json
+```
+
+`config.json`:
+
+```json
+{
+  "default_provider": "shiprocket",
+  "providers": {
+    "delhivery":   { "token": "", "client_name": "", "env": "production" },
+    "shiprocket":  { "email": "", "password": "" },
+    "ship24":      { "api_key": "" },
+    "trackingmore":{ "api_key": "", "courier_code": "" }
+  }
+}
+```
+
+Every value can also be set as an **environment variable** (env vars win over
+the file — handy for servers and CI):
+
+| Setting | Environment variable |
+|---|---|
+| Delhivery token | `DELHIVERY_TOKEN` |
+| Delhivery client name | `DELHIVERY_CLIENT_NAME` |
+| Delhivery environment (`production`/`staging`) | `DELHIVERY_ENV` |
+| Shiprocket email | `SHIPROCKET_EMAIL` |
+| Shiprocket password | `SHIPROCKET_PASSWORD` |
+| Ship24 API key | `SHIP24_API_KEY` |
+| TrackingMore API key | `TRACKINGMORE_API_KEY` |
+| TrackingMore courier code | `TRACKINGMORE_COURIER_CODE` |
+
+No credentials are ever hardcoded in the code. Keep `config.json` out of
+version control.
+
+### Where to get each credential
+
+- **Delhivery**: log in to your Delhivery One account → Settings → API Setup →
+  copy the API Token. The token is sent as `Authorization: Token <token>`.
+  Use `"env": "staging"` while testing.
+- **Shiprocket**: Settings → API → Create an API User. Use that email and
+  password; the tool logs in and gets a bearer token automatically.
+- **Ship24**: sign up, generate a tracking API key. Free plan available.
+- **TrackingMore**: sign up, generate an API key. Free tier available.
+
+---
+
+## Usage
+
+```bash
+# demo / offline
+python track_parcels.py --demo
+
+# one provider for everything
+python track_parcels.py -i parcels.csv -o tracked.csv -p shiprocket
+
+# mixed couriers: add a 'provider' column to the CSV and drop -p
+python track_parcels.py -i parcels.csv -o tracked.xlsx
+
+# explicit config file
+python track_parcels.py -i parcels.csv -o tracked.csv -c /etc/parcels/config.json
+```
+
+Options:
+
+| Flag | Meaning |
+|---|---|
+| `-i, --input` | input CSV (default `parcels.csv`) |
+| `-o, --output` | output file (default `tracked.csv`) |
+| `-p, --provider` | force one provider for all rows |
+| `-c, --config` | config file path (default `config.json`) |
+| `--demo` | offline fake data, no credentials |
+| `-f, --format` | `auto` (default), `csv`, `xlsx` or `json` |
+
+The `json` format is what the tracking web page reads — see below.
+
+Exit codes: `0` success, `2` bad input, `3` no provider could run (usually a
+missing credential).
+
+---
+
+## Input format
+
+A CSV. Column names are matched case-insensitively; extra columns are kept.
+
+| Column | Required | Notes |
+|---|---|---|
+| `tracking_number` | yes | aliases: `awb`, `waybill`, `consignment`, `tracking_id` |
+| `provider` | no | per-row provider override (e.g. `delhivery`, `shiprocket`) |
+| `courier` | no | courier name; used by the `manual` provider for its URL |
+| `order_id` | no | your own reference, carried through unchanged |
+
+Example (`parcels_sample.csv`):
+
+```csv
+tracking_number,courier,order_id
+DEMO123456789,delhivery,ORD-1001
+DEMO987654321,dtdc,ORD-1002
+```
+
+---
+
+## Output columns
+
+| Column | Meaning |
+|---|---|
+| `tracking_number` | as supplied |
+| `courier` | courier name (from the API, or your input) |
+| `status` | current status text |
+| `delivered` | `YES` when the status indicates delivery |
+| `last_location` | most recent scan location |
+| `last_update` | most recent scan time |
+| `status_detail` | extra status text where available |
+| `track_url` | clickable tracking URL |
+| `provider` | which adapter answered |
+| `error` | populated instead of a status when a parcel failed |
+
+One bad parcel never kills the run — its error goes in the `error` column and
+the rest are still tracked.
+
+---
+
+## The tracking web page
+
+`tracking_page.html` is a standalone, customer-facing page: a search box for a
+tracking number, a status card with the full scan-history timeline, a list of
+all shipments with a filter, promotional cards for your two stores, and Google
+AdSense slots. It works on its own or embedded in a website, on desktop and
+mobile. No build step, no dependencies.
+
+**Feed it live data.** The page loads `tracking_data.json` from the same folder.
+Generate it with the tracker:
+
+```bash
+python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
+```
+
+If that file is missing (or you just open the page directly from disk), the
+page shows built-in sample shipments so it never looks broken.
+
+> Tip: browsers block `fetch()` on `file://` pages, so to load real data, serve
+the folder over HTTP (e.g. `python -m http.server`) or upload both files to your
+web host. Opened straight from disk, the page simply falls back to the samples.
+
+**Set up Google Ads.** Open `tracking_page.html` and find the `CONFIG` object
+near the bottom of the file. Set:
+
+```js
+adSenseClient: "ca-pub-XXXXXXXXXXXXXXXX",   // your AdSense publisher ID
+adSlots: { top: "1234567890", bottom: "0987654321" }  // your ad unit slot IDs
+```
+
+Until you paste a real publisher ID, each ad position shows a tidy placeholder
+box instead of a live ad, so nothing breaks. Create the ad units in AdSense
+(Ads > By ad unit > Display ads) and copy each `data-ad-slot` number.
+
+**Edit the promos.** The `stores` array in the same `CONFIG` object controls the
+two promo cards (name, wording, colour, link). It ships pointing at hsk2020.in
+and hsk.co.in.
+
+---
+
+## Providers
+
+| Name | Type | Credentials | Notes |
+|---|---|---|---|
+| `delhivery` | direct courier | `token` | Delhivery's own tracking API |
+| `shiprocket` | aggregator | `email`, `password` | Batches up to 50 AWBs per call |
+| `ship24` | aggregator | `api_key` | 1,500+ couriers incl. India Post |
+| `trackingmore` | aggregator | `api_key` | 1,600+ couriers |
+| `manual` | none | none | Returns the official tracking URL only |
+| `demo` | none | none | Offline fake data for testing |
+
+---
+
+## Adding your own courier
+
+Open `adapters.py`, subclass `CourierAdapter`, implement `track()`, and register
+it in the `ADAPTERS` dict at the bottom. Return a `TrackingResult`:
+
+```python
+class MyCourierAdapter(CourierAdapter):
+    name = "mycourier"
+    requires = ("api_key",)
+
+    def track(self, tracking_number):
+        r = self.session.get(
+            "https://api.mycourier.com/track",
+            headers={"X-API-Key": self.config["api_key"]},
+            params={"awb": tracking_number},
+            timeout=REQUEST_TIMEOUT,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return TrackingResult(
+            tracking_number=tracking_number,
+            provider=self.name,
+            courier="MyCourier",
+            status=data["status"],
+            delivered=looks_delivered(data["status"]),
+            track_url=f"https://mycourier.com/track/{tracking_number}",
+        )
+```
+
+Add the credential name to `ENV_MAP` in `track_parcels.py` if you want an env
+var for it too.
+
+---
+
+## Limitations and honest notes
+
+- **Delhivery and Shiprocket endpoints** follow their published API docs and
+  should be stable. The **Ship24** and **TrackingMore** adapters parse
+  defensively and are written to the v4 / public-v1 shapes; check them against
+  the provider's current docs if a field comes back empty.
+- **Rate limits** apply per provider (e.g. Delhivery allows a set number of
+  requests per 5 minutes per IP). The tool issues one request per parcel (or one
+  batch per 50 for Shiprocket); add a delay for very large lists.
+- **This environment** (the sandbox this was built in) could not reach the live
+  courier hosts to do a real end-to-end call — outbound access to those domains
+  is blocked here. The demo and manual paths are fully tested; the live adapters
+  are built to the documented request/response shapes and run on any machine
+  with normal internet access.
+- Tracking data belongs to the courier; respect each provider's terms of use and
+  only track parcels you are entitled to.
+
+---
+
+## Sources
+
+Built from the published API documentation of:
+
+- Delhivery — order tracking API and API token generation docs
+- Shiprocket — API docs (track by AWB, track multiple AWBs)
+- Ship24 — tracking API and India Post coverage
+- TrackingMore — multi-carrier tracking API
+- India Post / CEPT — data-sharing and bulk track-and-trace integration notes
+- AfterShip — supported couriers reference
+
+Always confirm the current endpoint and authentication details against the
+provider's live documentation before going to production.
