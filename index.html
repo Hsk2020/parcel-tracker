@@ -281,6 +281,8 @@ const CONFIG = {
 const CARRIERS = [
   { name:"Amazon",                  re:/^TBA\d{10,}$/i,
     url:"https://www.amazon.in/progress-tracker" },
+  { name:"Shadowfax",               re:/^SF\d{8,}$/i,
+    url:"" },
   { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}[A-Z]{2}$/i,
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
   { name:"Delhivery",               re:/^\d{11,14}$/,
@@ -302,8 +304,9 @@ function detectCarrier(num){
 }
 function courierUrl(name, num){
   const c=CARRIERS.find(x=>x.name===name);
-  if(!c) return "";
-  return c.url.includes("{tn}") ? c.url.replace("{tn}", encodeURIComponent(num)) : c.url;
+  if(c && c.url) return c.url.includes("{tn}") ? c.url.replace("{tn}", encodeURIComponent(num)) : c.url;
+  // No known tracking URL for this courier - fall back to a search so there's always a way through.
+  return "https://www.google.com/search?q=" + encodeURIComponent((name?name+" ":"") + "track " + num);
 }
 
 /* ============================ state ============================ */
