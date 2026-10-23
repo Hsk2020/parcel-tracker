@@ -349,6 +349,94 @@ class TrackingMoreAdapter(CourierAdapter):
 
 
 # --------------------------------------------------------------------------- #
+# Shadowfax  (direct courier, India - public staging + production)
+# --------------------------------------------------------------------------- #
+class ShadowfaxAdapter(CourierAdapter):
+    name = "shadowfax"
+    requires = ("token",)
+    BASE = {
+        "staging": "https://dale.staging.shadowfax.in/api",
+        "production": "https://dale.shadowfax.in/api",
+    }
+
+    def _base(self) -> str:
+        return self.BASE.get(self.config.get("env", "staging"), self.BASE["staging"])
+
+    def _headers(self) -> dict:
+        return {"Authorization": f"Token {self.config['token']}", "Accept": "application/json"}
+
+    def track(self, tracking_number: str) -> TrackingResult:
+        url = f"{self._base()}/v4/clients/orders/{tracking_number}/track/"
+        r = self.session.get(url, headers=self._headers(), timeout=REQUEST_TIMEOUT)
+        r.raise_for_status()
+        return self._parse(tracking_number, r.json())
+
+    def track_many(self, tracking_numbers: Iterable[str]) -> dict[str, TrackingResult]:
+        tns = list(tracking_numbers)
+        out: dict[str, TrackingResult] = {}
+        headers = dict(self._headers())
+        headers["Content-Type"] = "application/json"
+        for i in range(0, len(tns), 50):  # Shadowfax bulk cap: 50 AWBs per call
+            chunk = tns[i:i + 50]
+            try:
+                r = self.session.post(f"{self._base()}/v4/clients/bulk_track/",
+                                      headers=headers, json={"awb_numbers": chunk},
+                                      timeout=REQUEST_TIMEOUT)
+                r.raise_for_status()
+                data = r.json()
+                items = data if isinstance(data, list) else (data.get("data") or data.get("orders") or [])
+                found = {}
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    awb = (it.get("order_details") or {}).get("awb_number") or it.get("awb_number")
+                    if awb:
+                        found[awb] = it
+                for tn in chunk:
+                    out[tn] = (self._parse(tn, found[tn]) if tn in found
+                               else TrackingResult(tracking_number=tn, provider=self.name,
+                                                   error="No data returned"))
+            except Exception as exc:
+                for tn in chunk:
+                    out.setdefault(tn, TrackingResult(tracking_number=tn,
+                                                      provider=self.name, error=str(exc)))
+        return out
+
+    def _parse(self, tn: str, data: dict) -> TrackingResult:
+        res = TrackingResult(tracking_number=tn, provider=self.name, courier="Shadowfax")
+        if not isinstance(data, dict):
+            res.error = "unexpected response shape"
+            return res
+        # Error envelopes: V4 uses status/errorCode; older endpoints use responseCode.
+        if data.get("status") == "FAILED" or data.get("errorCode") or data.get("message") == "Failure":
+            res.error = (data.get("message") or data.get("errorCode")
+                         or data.get("responseMsg") or "request failed")
+            return res
+        rc = data.get("responseCode")
+        if rc is not None:
+            try:
+                if int(rc) >= 400:
+                    res.error = data.get("responseMsg") or "request failed"
+                    return res
+            except (TypeError, ValueError):
+                pass
+        od = data.get("order_details") or {}
+        res.status = od.get("status_display") or od.get("status") or ""
+        res.status_detail = od.get("client_order_id", "")
+        res.delivered = looks_delivered(res.status)
+        for e in data.get("tracking_details") or []:
+            res.events.append({
+                "date": e.get("created", ""),
+                "activity": e.get("status") or e.get("status_id", ""),
+                "location": e.get("location", ""),
+            })
+        if res.events:
+            res.last_update = res.events[-1]["date"]
+            res.last_location = res.events[-1]["location"]
+        return res
+
+
+# --------------------------------------------------------------------------- #
 # Manual / URL fallback  (no credentials, always works)
 # --------------------------------------------------------------------------- #
 COURIER_URLS = {
@@ -409,6 +497,7 @@ class DemoAdapter(CourierAdapter):
 ADAPTERS = {
     "delhivery": DelhiveryAdapter,
     "shiprocket": ShiprocketAdapter,
+    "shadowfax": ShadowfaxAdapter,
     "ship24": Ship24Adapter,
     "trackingmore": TrackingMoreAdapter,
     "manual": ManualAdapter,
