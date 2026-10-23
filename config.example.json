@@ -18,6 +18,10 @@
       "api_key": "",
       "courier_code": ""
     },
+    "shadowfax": {
+      "token": "",
+      "env": "staging"
+    },
     "manual": {}
   }
 }
