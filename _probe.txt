@@ -207,3 +207,8 @@ mobile. No build step, no dependencies.
 Generate it with the tracker:
 
 ```bash
+python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
+```
+
+If that file is missing (or you just open the page directly from disk), the
+page shows built-in sample shipments so it never looks broken.
