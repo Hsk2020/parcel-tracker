@@ -196,3 +196,14 @@ the rest are still tracked.
 ---
 
 ## The tracking web page
+
+`tracking_page.html` is a standalone, customer-facing page: a search box for a
+tracking number, a status card with the full scan-history timeline, a list of
+all shipments with a filter, promotional cards for your two stores, and Google
+AdSense slots. It works on its own or embedded in a website, on desktop and
+mobile. No build step, no dependencies.
+
+**Feed it live data.** The page loads `tracking_data.json` from the same folder.
+Generate it with the tracker:
+
+```bash
