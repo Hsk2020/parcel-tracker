@@ -212,3 +212,5 @@ python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
 
 If that file is missing (or you just open the page directly from disk), the
 page shows built-in sample shipments so it never looks broken.
+
+> Tip: browsers block `fetch()` on `file://` pages, so to load real data, serve
