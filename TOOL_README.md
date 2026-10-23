@@ -99,6 +99,8 @@ the file — handy for servers and CI):
 | Ship24 API key | `SHIP24_API_KEY` |
 | TrackingMore API key | `TRACKINGMORE_API_KEY` |
 | TrackingMore courier code | `TRACKINGMORE_COURIER_CODE` |
+| Shadowfax token | `SHADOWFAX_TOKEN` |
+| Shadowfax environment (`staging`/`production`) | `SHADOWFAX_ENV` |
 
 No credentials are ever hardcoded in the code. Keep `config.json` out of
 version control.
@@ -112,6 +114,9 @@ version control.
   password; the tool logs in and gets a bearer token automatically.
 - **Ship24**: sign up, generate a tracking API key. Free plan available.
 - **TrackingMore**: sign up, generate an API key. Free tier available.
+- **Shadowfax**: generate a token in the SFX 360 Partner Portal. Use
+  `"env": "staging"` (dale.staging.shadowfax.in) while testing and swap to
+  `production` when you go live. The token is static and does not expire.
 
 ---
 
@@ -124,7 +129,7 @@ python track_parcels.py --demo
 # one provider for everything
 python track_parcels.py -i parcels.csv -o tracked.csv -p shiprocket
 
-# mixed couriers: add a 'provider' column to the CSV and drop -p
+# mixed couriers: add a 'provider' column to the CSV and omit -p
 python track_parcels.py -i parcels.csv -o tracked.xlsx
 
 # explicit config file
@@ -208,9 +213,9 @@ python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
 If that file is missing (or you just open the page directly from disk), the
 page shows built-in sample shipments so it never looks broken.
 
-> Tip: browsers block `fetch()` on `file://` pages, so to load real data, serve
-the folder over HTTP (e.g. `python -m http.server`) or upload both files to your
-web host. Opened straight from disk, the page simply falls back to the samples.
+> Tip: browsers block `fetch()` on `file://` pages, so to load real data, host
+the folder on a local web server, or upload both files to your web host. Opened
+straight from disk, the page simply falls back to the samples.
 
 **Set up Google Ads.** Open `tracking_page.html` and find the `CONFIG` object
 near the bottom of the file. Set:
@@ -236,6 +241,7 @@ and hsk.co.in.
 |---|---|---|---|
 | `delhivery` | direct courier | `token` | Delhivery's own tracking API |
 | `shiprocket` | aggregator | `email`, `password` | Batches up to 50 AWBs per call |
+| `shadowfax` | direct courier | `token` | Shadowfax staging + production; batches up to 50 AWBs |
 | `ship24` | aggregator | `api_key` | 1,500+ couriers incl. India Post |
 | `trackingmore` | aggregator | `api_key` | 1,600+ couriers |
 | `manual` | none | none | Returns the official tracking URL only |
