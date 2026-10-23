@@ -1,5 +1,7 @@
 # HSK Parcel Tracker — app for Hrudai Store Kart
 
+![HSK Parcel Tracker](screenshot.png)
+
 An AfterShip-style parcel tracking app for **Hrudai Store Kart**. Add any
 tracking number, it detects the courier, saves your parcels and shows a status
 timeline. Installable on a phone (PWA), and it promotes our two stores.
