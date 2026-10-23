@@ -51,6 +51,8 @@ ENV_MAP = {
     ("ship24", "api_key"): "SHIP24_API_KEY",
     ("trackingmore", "api_key"): "TRACKINGMORE_API_KEY",
     ("trackingmore", "courier_code"): "TRACKINGMORE_COURIER_CODE",
+    ("shadowfax", "token"): "SHADOWFAX_TOKEN",
+    ("shadowfax", "env"): "SHADOWFAX_ENV",
 }
 
 DEFAULT_CONFIG = {
@@ -60,6 +62,7 @@ DEFAULT_CONFIG = {
         "shiprocket": {"email": "", "password": ""},
         "ship24": {"api_key": ""},
         "trackingmore": {"api_key": "", "courier_code": ""},
+        "shadowfax": {"token": "", "env": "staging"},
         "manual": {},
     },
 }
