@@ -174,3 +174,25 @@ DEMO987654321,dtdc,ORD-1002
 ```
 
 ---
+
+## Output columns
+
+| Column | Meaning |
+|---|---|
+| `tracking_number` | as supplied |
+| `courier` | courier name (from the API, or your input) |
+| `status` | current status text |
+| `delivered` | `YES` when the status indicates delivery |
+| `last_location` | most recent scan location |
+| `last_update` | most recent scan time |
+| `status_detail` | extra status text where available |
+| `track_url` | clickable tracking URL |
+| `provider` | which adapter answered |
+| `error` | populated instead of a status when a parcel failed |
+
+One bad parcel never kills the run — its error goes in the `error` column and
+the rest are still tracked.
+
+---
+
+## The tracking web page
