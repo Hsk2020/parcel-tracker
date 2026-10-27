@@ -1,0 +1,43 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "*.py",
+      "*.md",
+      "*.csv",
+      "*.txt",
+      "*.toml",
+      "*.yml",
+      "*.yaml",
+      "worker/**",
+      "firebase/**",
+      ".github/**",
+      "requirements.txt",
+      "config.example.json"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(json|webmanifest)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, max-age=0"
+          }
+        ]
+      },
+      {
+        "source": "sw.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, max-age=0"
+          }
+        ]
+      }
+    ]
+  }
+}

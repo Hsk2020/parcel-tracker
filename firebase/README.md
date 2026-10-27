@@ -30,7 +30,7 @@ https://asia-south1-yourproject.cloudfunctions.net/track
 Test it in a browser:
 
 ```
-https://asia-south1-yourproject.cloudfunctions.net/track?tracking_number=1Z57Y68V0494199622
+https://asia-south1-yourproject.cloudfunctions.net/track
 ```
 
 You should get JSON with `status`, `courier`, `events`.
@@ -54,3 +54,50 @@ Commit. Any tracking number typed into the app will now resolve live.
 - Same parsing as the Worker: detects the courier, creates the tracking
   (create-and-get in TrackingMore v4), falls back to a stored lookup, and maps
   `origin_info` / `destination_info` scan events into a timeline.
+
+---
+
+# Hosting the app on Firebase Hosting
+
+The site can be served from Firebase Hosting instead of GitHub Pages. The
+config lives at the **repo root** (`firebase.json` + `.firebaserc`), and it
+publishes the repo root itself, so there is only ONE copy of the app - no
+`public/` duplicate to drift out of sync.
+
+## Deploy
+
+From the **repo root** (not the `firebase/` folder):
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase deploy --only hosting
+```
+
+It prints your live URLs:
+
+```
+Hosting URL: https://hsk-tracker-1a2b3.web.app
+             https://hsk-tracker-1a2b3.firebaseapp.com
+```
+
+## What gets published
+
+Only the site files: `index.html`, `tracking_data.json`,
+`manifest.webmanifest`, `sw.js`, `icon-192.png`, `icon-512.png`,
+`tracking-page.html`. Python scripts, docs, CSVs, the `worker/` and `firebase/`
+folders are excluded by the `ignore` list in `firebase.json`.
+
+`tracking_data.json` and `sw.js` are served with `no-cache` so updates show up
+immediately.
+
+## Notes
+
+- The scheduled GitHub Action still refreshes `tracking_data.json` and commits
+  it; the next `firebase deploy` picks it up. To auto-deploy on every commit,
+  add a GitHub Actions workflow that runs `firebase deploy --only hosting` with
+  a `FIREBASE_TOKEN`.
+- The Cloud Run function (`track`) is unaffected - it was deployed from the
+  Cloud Console, so the `functions` block is not needed here.
+- Once Firebase Hosting is live and you're happy, GitHub Pages can be disabled
+  in repo Settings -> Pages.
