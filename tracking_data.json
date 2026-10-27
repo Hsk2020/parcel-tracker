@@ -1,19 +1,25 @@
 {
-  "generated_at": "2026-10-27T06:48:06",
+  "generated_at": "2026-10-27T15:12:55",
   "parcels": [
     {
       "tracking_number": "1Z57Y68V0494199622",
       "courier_code": "ups",
       "courier": "ups",
-      "status": "Pending",
+      "status": "Info Received",
       "delivered": "",
-      "last_location": "",
-      "last_update": "",
+      "last_location": "HK",
+      "last_update": "2026-10-26T14:38:10",
       "status_detail": "",
       "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
       "provider": "trackingmore",
       "error": "",
-      "events": []
+      "events": [
+        {
+          "date": "2026-10-26T14:38:10",
+          "activity": "",
+          "location": "HK"
+        }
+      ]
     }
   ]
 }
