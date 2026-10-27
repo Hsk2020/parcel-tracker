@@ -1,116 +1,19 @@
 {
-  "generated_at": "2026-10-21T12:00:00",
-  "note": "EXAMPLE DATA - replace this file with real output from the tracker: python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket",
+  "generated_at": "2026-10-27T06:48:06",
   "parcels": [
     {
-      "tracking_number": "EX123456789IN",
-      "courier": "Delhivery",
-      "order_id": "ORD-1001",
-      "status": "Delivered",
-      "delivered": "YES",
-      "last_location": "Visakhapatnam, AP",
-      "last_update": "2026-10-20 14:30:00",
-      "status_detail": "Delivered to consignee",
-      "track_url": "https://www.delhivery.com/track/package/EX123456789IN",
-      "provider": "delhivery",
-      "error": "",
-      "events": [
-        {
-          "date": "2026-10-20 14:30:00",
-          "activity": "Delivered",
-          "location": "Visakhapatnam, AP"
-        },
-        {
-          "date": "2026-10-20 08:10:00",
-          "activity": "Out for Delivery",
-          "location": "Visakhapatnam, AP"
-        },
-        {
-          "date": "2026-10-19 21:40:00",
-          "activity": "In Transit",
-          "location": "Vijayawada Hub, AP"
-        },
-        {
-          "date": "2026-10-18 19:05:00",
-          "activity": "Picked Up",
-          "location": "Hyderabad, TS"
-        }
-      ]
-    },
-    {
-      "tracking_number": "EX987654321IN",
-      "courier": "DTDC",
-      "order_id": "ORD-1002",
-      "status": "Out for Delivery",
+      "tracking_number": "1Z57Y68V0494199622",
+      "courier_code": "ups",
+      "courier": "ups",
+      "status": "Pending",
       "delivered": "",
-      "last_location": "Vijayawada, AP",
-      "last_update": "2026-10-21 09:05:00",
+      "last_location": "",
+      "last_update": "",
       "status_detail": "",
-      "track_url": "https://www.dtdc.in/tracking/tracking_results.asp",
-      "provider": "shiprocket",
+      "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
+      "provider": "trackingmore",
       "error": "",
-      "events": [
-        {
-          "date": "2026-10-21 09:05:00",
-          "activity": "Out for Delivery",
-          "location": "Vijayawada, AP"
-        },
-        {
-          "date": "2026-10-20 22:15:00",
-          "activity": "Arrived at Hub",
-          "location": "Vijayawada, AP"
-        },
-        {
-          "date": "2026-10-19 18:00:00",
-          "activity": "In Transit",
-          "location": "Chennai, TN"
-        }
-      ]
-    },
-    {
-      "tracking_number": "EX555000111IN",
-      "courier": "Blue Dart",
-      "order_id": "ORD-1003",
-      "status": "In Transit",
-      "delivered": "",
-      "last_location": "Mumbai, MH",
-      "last_update": "2026-10-20 17:45:00",
-      "status_detail": "",
-      "track_url": "https://www.bluedart.com/tracking",
-      "provider": "shiprocket",
-      "error": "",
-      "events": [
-        {
-          "date": "2026-10-20 17:45:00",
-          "activity": "In Transit",
-          "location": "Mumbai, MH"
-        },
-        {
-          "date": "2026-10-19 11:20:00",
-          "activity": "Manifested",
-          "location": "Pune, MH"
-        }
-      ]
-    },
-    {
-      "tracking_number": "EX222333444IN",
-      "courier": "India Post",
-      "order_id": "ORD-1004",
-      "status": "Manifested",
-      "delivered": "",
-      "last_location": "Hyderabad, TS",
-      "last_update": "2026-10-19 10:00:00",
-      "status_detail": "",
-      "track_url": "https://www.indiapost.gov.in",
-      "provider": "manual",
-      "error": "",
-      "events": [
-        {
-          "date": "2026-10-19 10:00:00",
-          "activity": "Booked",
-          "location": "Hyderabad, TS"
-        }
-      ]
+      "events": []
     }
   ]
 }
