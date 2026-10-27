@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "hsk-tracker-1a2b3-f20a4",
     "public": ".",
     "ignore": [
       "firebase.json",

@@ -77,8 +77,8 @@ firebase deploy --only hosting
 It prints your live URLs:
 
 ```
-Hosting URL: https://hsk-tracker-1a2b3.web.app
-             https://hsk-tracker-1a2b3.firebaseapp.com
+Hosting URL: https://hsk-tracker-1a2b3-f20a4.web.app
+             https://hsk-tracker-1a2b3-f20a4.firebaseapp.com
 ```
 
 ## What gets published
