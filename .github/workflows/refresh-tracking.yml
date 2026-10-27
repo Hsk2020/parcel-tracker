@@ -1,0 +1,56 @@
+name: Refresh tracking data
+
+# Runs the tracker with the stored TrackingMore key and commits the result, so
+# the app's tracking_data.json stays fresh with no server and no manual step.
+#
+# Add your parcels to parcels.csv (columns: tracking_number, courier_code).
+# Trigger manually any time from the Actions tab -> "Refresh tracking data" -> Run workflow.
+
+on:
+  schedule:
+    - cron: "0 */3 * * *"   # every 3 hours (UTC)
+  workflow_dispatch: {}      # allow manual runs
+
+permissions:
+  contents: write            # needed to commit tracking_data.json back
+
+concurrency:
+  group: refresh-tracking
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Track parcels
+        env:
+          TRACKINGMORE_API_KEY: ${{ secrets.TRACKINGMORE_API_KEY }}
+        run: |
+          if [ ! -f parcels.csv ]; then
+            echo "No parcels.csv found - nothing to track. Add one to enable this."
+            exit 0
+          fi
+          python track_parcels.py -i parcels.csv -o tracking_data.json -p trackingmore || true
+
+      - name: Commit changes
+        run: |
+          if [ -z "$(git status --porcelain tracking_data.json)" ]; then
+            echo "No change in tracking_data.json"
+            exit 0
+          fi
+          git config user.name  "hsk-tracker-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add tracking_data.json
+          git commit -m "Auto-refresh tracking data"
+          git push
