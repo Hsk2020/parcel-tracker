@@ -1,0 +1,18 @@
+# Cloudflare Worker config for the live tracking endpoint.
+#
+# Deploy from this folder:
+#   npm install -g wrangler
+#   wrangler login
+#   wrangler secret put TRACKINGMORE_API_KEY     # paste your TrackingMore key
+#   wrangler deploy
+#
+# wrangler prints the public URL, e.g. https://hsk-track.<you>.workers.dev
+# Paste that into CONFIG.liveApi in index.html.
+
+name = "hsk-track"
+main = "live-track-worker.js"
+compatibility_date = "2024-12-01"
+
+# Plain (non-secret) variables can go here. The API key must be a secret.
+[vars]
+# TRANSACTION_SRC = "hsk-parcel-tracker"
