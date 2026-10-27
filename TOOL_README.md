@@ -113,7 +113,10 @@ version control.
 - **Shiprocket**: Settings → API → Create an API User. Use that email and
   password; the tool logs in and gets a bearer token automatically.
 - **Ship24**: sign up, generate a tracking API key. Free plan available.
-- **TrackingMore**: sign up, generate an API key. Free tier available.
+- **TrackingMore**: sign up, generate an API key. Free tier available. Check
+  any key works with `python verify_key.py --key-file <file>` (or `--key`, or the
+  `TRACKINGMORE_API_KEY` env var) — it calls the account-info endpoint and spends
+  no tracking credits.
 - **Shadowfax**: generate a token in the SFX 360 Partner Portal. Use
   `"env": "staging"` (dale.staging.shadowfax.in) while testing and swap to
   `production` when you go live. The token is static and does not expire.
