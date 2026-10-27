@@ -284,6 +284,8 @@ const CONFIG = {
 const CARRIERS = [
   { name:"Amazon",                  re:/^TBA\d{10,}$/i,
     url:"https://www.amazon.in/progress-tracker" },
+  { name:"Amazon order ID",         re:/^\d{3}-\d{7}-\d{7}$/,
+    url:"https://www.amazon.in/gp/css/order-history" },
   { name:"Shadowfax",               re:/^SF\d{8,}$/i,
     url:"" },
   { name:"UPS",                     re:/^(1Z[0-9A-Z]{16}|T\d{10})$/i,
