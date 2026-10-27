@@ -124,6 +124,7 @@ def run(input_path: str, output_path: str, provider: str | None,
         return 2
     prov_col = find_column(df, "provider")
     cour_col = find_column(df, "courier")
+    cc_col = find_column(df, "courier_code", "courier code", "trackingmore_courier_code")
 
     default_provider = provider or cfg.get("default_provider") or "shiprocket"
 
@@ -137,6 +138,11 @@ def run(input_path: str, output_path: str, provider: str | None,
         key = p
         if p == "manual" and cour_col:
             key = f"manual|{(row.get(cour_col, '') or '').lower().strip()}"
+        # trackingmore: allow a per-row TrackingMore courier_code
+        if p == "trackingmore" and cc_col:
+            cc = (row.get(cc_col, "") or "").lower().strip()
+            if cc:
+                key = f"trackingmore|{cc}"
         by_provider.setdefault(key, []).append(row)
 
     results: dict[tuple[int, str], object] = {}  # (row_index, tn) -> TrackingResult
@@ -148,6 +154,8 @@ def run(input_path: str, output_path: str, provider: str | None,
         pconf = dict(cfg["providers"].get(pname, {}))
         if pname == "manual" and "|" in key:
             pconf["courier"] = key.split("|", 1)[1]
+        if pname == "trackingmore" and "|" in key:
+            pconf["courier_code"] = key.split("|", 1)[1]
         try:
             if key not in adapter_cache:
                 adapter_cache[key] = get_adapter(pname, pconf)

@@ -328,6 +328,56 @@ for each row.
 
 ---
 
+## TrackingMore courier coverage
+
+TrackingMore covers ~1,700 carriers. The Indian couriers most relevant to us, with
+their TrackingMore courier codes:
+
+| Courier | Code |
+|---|---|
+| Delhivery | `delhivery` |
+| Blue Dart | `bluedart` |
+| DTDC | `dtdc` (and `dtdc-plus`) |
+| India Post / Speed Post | `india-post` |
+| Ekart (Flipkart) | `ekart` |
+| Ecom Express | `ecom-express` |
+| XpressBees | `xpressbees` |
+| Shadowfax | `shadowfax` |
+| Gati | `gaticn` / `gati-kwe` |
+| Dotzot | `dotzot` |
+| Delcart | `delcart-in` |
+| First Flight | `first-flight` |
+| GoJavas | `gojavas` |
+| The Professional Couriers | `professional-couriers` |
+| Trackon | `trackon` |
+| Safexpress | `safexpress` |
+| Amazon | `amazon` |
+| UPS | `ups` |
+| FedEx | `fedex` |
+| DHL | `dhl` |
+| Aramex | `aramex` |
+| TNT | `tnt` |
+
+**Get the complete live list** (authoritative, ~1,700 carriers):
+
+```bash
+python list_couriers.py --search india      # only India-related couriers
+python list_couriers.py --csv couriers.csv  # save them all
+```
+
+**Mixed couriers in one run:** add a `courier_code` column to your CSV and use
+`-p trackingmore` - each row is tracked with its own code.
+
+```csv
+tracking_number,courier_code
+1Z999AA10123456784,ups
+SF1234567890,shadowfax
+```
+
+Leave `courier_code` blank and TrackingMore's own detection picks the courier.
+
+---
+
 ## Limitations and honest notes
 
 - **Delhivery and Shiprocket endpoints** follow their published API docs and

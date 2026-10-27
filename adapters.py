@@ -299,6 +299,38 @@ class Ship24Adapter(CourierAdapter):
         return res
 
 
+# Convenience map: common courier names -> TrackingMore courier codes.
+# Codes follow TrackingMore's published carrier list; the full ~1,700-carrier list
+# (authoritative) can be pulled with:  python list_couriers.py --search india
+TRACKINGMORE_COURIER_CODES = {
+    # --- India ---
+    "delhivery": "delhivery",
+    "blue dart": "bluedart", "bluedart": "bluedart",
+    "dtdc": "dtdc", "dtdc plus": "dtdc-plus",
+    "india post": "india-post", "speed post": "india-post",
+    "ekart": "ekart", "flipkart": "ekart",
+    "ecom express": "ecom-express",
+    "xpressbees": "xpressbees", "xpress bees": "xpressbees",
+    "shadowfax": "shadowfax",
+    "gati": "gaticn", "gati kwe": "gati-kwe",
+    "dotzot": "dotzot", "delcart": "delcart-in",
+    "first flight": "first-flight", "first flight couriers": "firstflightme",
+    "gojavas": "gojavas", "madhur": "madhur-couriers",
+    "bombino": "bombino-express", "airwings": "airwings-india",
+    "shiprocket": "shiprocket", "pickrr": "pickrr", "spoton": "spoton",
+    "professional couriers": "professional-couriers", "tpc": "professional-couriers",
+    "trackon": "trackon", "safexpress": "safexpress",
+    # --- Global ---
+    "amazon": "amazon", "ups": "ups", "fedex": "fedex", "dhl": "dhl",
+    "aramex": "aramex", "tnt": "tnt",
+}
+
+
+def trackingmore_code_for(name: str) -> str:
+    """Best-effort map a courier name to a TrackingMore courier code."""
+    return TRACKINGMORE_COURIER_CODES.get((name or "").lower().strip(), "")
+
+
 # --------------------------------------------------------------------------- #
 # TrackingMore  (aggregator - API v4)
 # --------------------------------------------------------------------------- #
