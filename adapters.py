@@ -298,52 +298,121 @@ class Ship24Adapter(CourierAdapter):
 
 
 # --------------------------------------------------------------------------- #
-# TrackingMore  (aggregator, best-effort parse)
+# TrackingMore  (aggregator - API v4)
 # --------------------------------------------------------------------------- #
 class TrackingMoreAdapter(CourierAdapter):
     name = "trackingmore"
     requires = ("api_key",)
     BASE = "https://api.trackingmore.com/v4"
 
+    STATUS_MAP = {
+        "pending": "Pending", "inforeceived": "Info Received", "transit": "In Transit",
+        "pickup": "Out for Delivery", "delivered": "Delivered",
+        "undelivered": "Delivery Failed", "exception": "Exception",
+        "expired": "Expired", "notfound": "Not Found",
+    }
+
     def _headers(self) -> dict:
-        return {"Trackingmore-Api-Key": self.config["api_key"],
+        # v4 uses the header Tracking-Api-Key (the old v2 header was Trackingmore-Api-Key).
+        return {"Tracking-Api-Key": self.config["api_key"],
                 "Content-Type": "application/json"}
+
+    def _detect_courier(self, tracking_number: str, h: dict) -> str:
+        try:
+            r = self.session.post(f"{self.BASE}/couriers/detect", headers=h,
+                                  json={"tracking_number": tracking_number},
+                                  timeout=REQUEST_TIMEOUT)
+            data = (r.json() or {}).get("data")
+            if isinstance(data, list) and data:
+                return data[0].get("courier_code", "") or ""
+            if isinstance(data, dict):
+                return data.get("courier_code", "") or ""
+        except Exception:
+            pass
+        return ""
+
+    @staticmethod
+    def _first(j: dict):
+        data = (j or {}).get("data")
+        if isinstance(data, list):
+            return data[0] if data else None
+        if isinstance(data, dict):
+            for k in ("trackings", "items", "results"):
+                v = data.get(k)
+                if isinstance(v, list) and v:
+                    return v[0]
+            if data.get("tracking_number"):
+                return data
+        return None
 
     def track(self, tracking_number: str) -> TrackingResult:
         h = self._headers()
         body = {"tracking_number": tracking_number}
-        if self.config.get("courier_code"):
-            body["courier_code"] = self.config["courier_code"]
-        # Create (ignore "already exists" errors), then fetch.
+        cc = self.config.get("courier_code") or self._detect_courier(tracking_number, h)
+        if cc:
+            body["courier_code"] = cc
+
+        # In v4, "create a tracking" is create-and-get (real-time results).
         try:
-            self.session.post(f"{self.BASE}/trackings/create", headers=h,
-                              json=body, timeout=REQUEST_TIMEOUT)
+            r = self.session.post(f"{self.BASE}/trackings/create", headers=h,
+                                  json=body, timeout=REQUEST_TIMEOUT)
+            item = self._first(r.json() or {})
+            if item and (item.get("status") or item.get("delivery_status")):
+                return self._parse(tracking_number, item)
         except Exception:
             pass
+
+        # Fallback: fetch stored results.
         r = self.session.get(f"{self.BASE}/trackings/get", headers=h,
                              params={"tracking_numbers": tracking_number},
                              timeout=REQUEST_TIMEOUT)
-        r.raise_for_status()
-        data = (r.json() or {}).get("data") or []
-        if not data:
-            return TrackingResult(tracking_number=tracking_number, provider=self.name,
-                                  error="No tracking data returned")
-        return self._parse(tracking_number, data[0])
+        j = r.json() or {}
+        item = self._first(j)
+        if item:
+            return self._parse(tracking_number, item)
+        return TrackingResult(tracking_number=tracking_number, provider=self.name,
+                              error=(j.get("message") or "No tracking data returned"))
 
     def _parse(self, tn: str, item: dict) -> TrackingResult:
         res = TrackingResult(tracking_number=tn, provider=self.name)
-        res.courier = item.get("courier_code", "")
-        res.status = (item.get("delivery_status", "") or "").replace("_", " ").title()
-        res.status_detail = item.get("latest_status", "")
-        res.delivered = (str(item.get("delivery_status", "")).lower() == "delivered"
-                         or looks_delivered(res.status))
-        events = item.get("tracking_events") or []
-        if events:
-            res.last_update = events[-1].get("checkpoint_date", "")
-            res.last_location = events[-1].get("location", "")
-        res.events = [{"date": e.get("checkpoint_date", ""),
-                       "activity": e.get("checkpoint_delivery_status", "") or e.get("tracking_detail", ""),
-                       "location": e.get("location", "")} for e in events]
+        res.courier = item.get("courier_code", "") or ""
+        raw = (item.get("status") or item.get("delivery_status") or "").strip()
+        res.status = self.STATUS_MAP.get(raw.lower(), raw.replace("_", " ").title())
+        res.status_detail = item.get("last_event") or item.get("latest_status") or ""
+        res.delivered = raw.lower() == "delivered" or looks_delivered(res.status)
+
+        # v4 puts events under origin_info / destination_info -> trackinfo
+        events = []
+        for key in ("origin_info", "destination_info"):
+            info = item.get(key) or {}
+            for e in info.get("trackinfo") or []:
+                events.append({
+                    "date": e.get("checkpoint_date") or e.get("Date", ""),
+                    "activity": (e.get("details") or e.get("StatusDescription")
+                                 or e.get("checkpoint_status", "")),
+                    "location": e.get("location") or e.get("Details", ""),
+                })
+        # v3-style fallback
+        for e in item.get("tracking_events") or []:
+            events.append({
+                "date": e.get("checkpoint_date", ""),
+                "activity": e.get("tracking_detail") or e.get("checkpoint_delivery_status", ""),
+                "location": e.get("location", ""),
+            })
+        seen, uniq = set(), []
+        for e in events:
+            k = (e["date"], e["activity"], e["location"])
+            if k in seen:
+                continue
+            seen.add(k)
+            uniq.append(e)
+        uniq.sort(key=lambda x: x["date"] or "")
+        res.events = uniq
+        if uniq:
+            res.last_update = uniq[-1]["date"]
+            res.last_location = uniq[-1]["location"]
+        else:
+            res.last_update = item.get("last_update_time", "") or ""
         res.track_url = f"https://www.trackingmore.com/track/{tn}"
         return res
 

@@ -43,43 +43,89 @@ export default {
     const key = env.TRACKINGMORE_API_KEY;
     if (!key) return json({ error: "server not configured (missing API key)" }, 500);
 
-    const headers = { "Trackingmore-Api-Key": key, "Content-Type": "application/json" };
+    // v4 uses the header Tracking-Api-Key (the old v2 header was Trackingmore-Api-Key).
+    const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
 
-    // 1) Create the tracking (ignore "already exists" errors), then fetch.
+    // v4 can return data as an array or as { trackings: [...] } - handle both.
+    const first = (j) => {
+      const d = j && j.data;
+      if (Array.isArray(d)) return d[0] || null;
+      if (d && typeof d === "object") {
+        for (const k of ["trackings", "items", "results"]) {
+          if (Array.isArray(d[k]) && d[k].length) return d[k][0];
+        }
+        if (d.tracking_number) return d;
+      }
+      return null;
+    };
+    const STATUS = { pending: "Pending", inforeceived: "Info Received", transit: "In Transit",
+      pickup: "Out for Delivery", delivered: "Delivered", undelivered: "Delivery Failed",
+      exception: "Exception", expired: "Expired", notfound: "Not Found" };
+
+    // 1) Detect the courier (best effort), then create (create-and-get in v4).
+    let courierCode = "";
     try {
-      await fetch("https://api.trackingmore.com/v4/trackings/create", {
+      const dr = await fetch("https://api.trackingmore.com/v4/couriers/detect", {
         method: "POST", headers, body: JSON.stringify({ tracking_number: tn }),
       });
+      const dd = (await dr.json() || {}).data;
+      courierCode = (Array.isArray(dd) ? (dd[0] || {}).courier_code : (dd || {}).courier_code) || "";
     } catch (_) { /* ignore */ }
 
-    let data;
+    let item = null;
     try {
-      const r = await fetch(
-        "https://api.trackingmore.com/v4/trackings/get?tracking_numbers=" + encodeURIComponent(tn),
-        { headers }
-      );
-      data = await r.json();
-    } catch (e) {
-      return json({ error: "upstream request failed: " + String(e) }, 502);
-    }
+      const cr = await fetch("https://api.trackingmore.com/v4/trackings/create", {
+        method: "POST", headers,
+        body: JSON.stringify(courierCode
+          ? { tracking_number: tn, courier_code: courierCode }
+          : { tracking_number: tn }),
+      });
+      item = first(await cr.json());
+    } catch (_) { /* ignore */ }
 
-    const item = (data && data.data && data.data[0]) || null;
+    // 2) Fallback: fetch stored results.
+    if (!item || !(item.status || item.delivery_status)) {
+      try {
+        const r = await fetch(
+          "https://api.trackingmore.com/v4/trackings/get?tracking_numbers=" + encodeURIComponent(tn),
+          { headers }
+        );
+        item = first(await r.json()) || item;
+      } catch (e) {
+        return json({ error: "upstream request failed: " + String(e) }, 502);
+      }
+    }
     if (!item) return json({ error: "no tracking data for this number" }, 404);
 
-    const events = (item.tracking_events || []).map((e) => ({
-      date: e.checkpoint_date || "",
-      activity: e.checkpoint_delivery_status || e.tracking_detail || "",
-      location: e.location || "",
-    }));
+    // 3) v4 events live under origin_info / destination_info -> trackinfo.
+    const events = [];
+    for (const key of ["origin_info", "destination_info"]) {
+      const info = item[key] || {};
+      for (const e of (info.trackinfo || [])) {
+        events.push({
+          date: e.checkpoint_date || e.Date || "",
+          activity: e.details || e.StatusDescription || e.checkpoint_status || "",
+          location: e.location || e.Details || "",
+        });
+      }
+    }
+    for (const e of (item.tracking_events || [])) {
+      events.push({ date: e.checkpoint_date || "",
+        activity: e.tracking_detail || e.checkpoint_delivery_status || "",
+        location: e.location || "" });
+    }
+    events.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
-    const status = (item.delivery_status || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const raw = (item.status || item.delivery_status || "").toString();
+    const status = STATUS[raw.toLowerCase()]
+      || raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     return json({
-      status: item.latest_status || status,
-      courier: item.courier_code || "",
-      delivered: String(item.delivery_status || "").toLowerCase() === "delivered",
+      status,
+      courier: item.courier_code || courierCode || "",
+      delivered: raw.toLowerCase() === "delivered",
       last_location: (events[events.length - 1] || {}).location || "",
-      last_update: (events[events.length - 1] || {}).date || "",
+      last_update: (events[events.length - 1] || {}).date || item.last_update_time || "",
       track_url: "https://www.trackingmore.com/track/" + encodeURIComponent(tn),
       events,
     });
