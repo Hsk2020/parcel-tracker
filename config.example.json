@@ -22,6 +22,11 @@
       "token": "",
       "env": "staging"
     },
+    "ups": {
+      "client_id": "",
+      "client_secret": "",
+      "env": "production"
+    },
     "manual": {}
   }
 }

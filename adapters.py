@@ -26,6 +26,8 @@ provider's current docs before heavy use.
 """
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -506,6 +508,114 @@ class ShadowfaxAdapter(CourierAdapter):
 
 
 # --------------------------------------------------------------------------- #
+# UPS  (direct courier - OAuth 2.0 client credentials)
+# --------------------------------------------------------------------------- #
+class UpsAdapter(CourierAdapter):
+    name = "ups"
+    requires = ("client_id", "client_secret")
+    # env -> (token_url, api_base)
+    BASE = {
+        "production": ("https://onlinetools.ups.com/security/v1/oauth/token",
+                       "https://onlinetools.ups.com/api"),
+        "staging":    ("https://wwwcie.ups.com/security/v1/oauth/token",
+                       "https://wwwcie.ups.com/api"),
+        "cie":        ("https://wwwcie.ups.com/security/v1/oauth/token",
+                       "https://wwwcie.ups.com/api"),
+    }
+
+    def __init__(self, config: dict, session: requests.Session | None = None):
+        super().__init__(config, session)
+        self._token: str | None = None
+        self._token_exp: float = 0.0
+
+    def _endpoints(self) -> tuple[str, str]:
+        env = (self.config.get("env") or "production").lower()
+        return self.BASE.get(env, self.BASE["production"])
+
+    def _get_token(self) -> str:
+        now = time.time()
+        if self._token and now < self._token_exp - 60:  # reuse until ~1 min before expiry
+            return self._token
+        token_url, _ = self._endpoints()
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        if self.config.get("merchant_id"):
+            headers["x-merchant-id"] = self.config["merchant_id"]
+        r = self.session.post(
+            token_url, headers=headers,
+            data={"grant_type": "client_credentials"},
+            auth=(self.config["client_id"], self.config["client_secret"]),
+            timeout=REQUEST_TIMEOUT,
+        )
+        r.raise_for_status()
+        j = r.json() or {}
+        tok = j.get("access_token")
+        if not tok:
+            raise RuntimeError("UPS auth failed: no access_token in response")
+        try:
+            exp = float(j.get("expires_in", "14399"))
+        except (TypeError, ValueError):
+            exp = 14399.0
+        self._token = tok
+        self._token_exp = now + exp
+        return tok
+
+    def track(self, tracking_number: str) -> TrackingResult:
+        _, api = self._endpoints()
+        headers = {
+            "Authorization": f"Bearer {self._get_token()}",
+            "transId": str(uuid.uuid4()),          # UPS requires a unique id per request
+            "transactionSrc": self.config.get("transaction_src", "hsk-parcel-tracker"),
+            "Accept": "application/json",
+        }
+        r = self.session.get(f"{api}/track/v1/details/{tracking_number}", headers=headers,
+                             params={"locale": "en_US", "returnSignature": "false"},
+                             timeout=REQUEST_TIMEOUT)
+        r.raise_for_status()
+        return self._parse(tracking_number, r.json())
+
+    def _parse(self, tn: str, data: dict) -> TrackingResult:
+        res = TrackingResult(tracking_number=tn, provider=self.name, courier="UPS")
+        try:
+            pkg = data["trackResponse"]["shipment"][0]["package"][0]
+        except Exception:
+            msg = ""
+            try:
+                msg = data["response"]["errors"][0].get("message", "")
+            except Exception:
+                pass
+            res.error = msg or "No tracking data returned"
+            return res
+
+        cs = pkg.get("currentStatus") or {}
+        res.status = cs.get("description") or cs.get("simplifiedTextDescription") or ""
+        code = str(cs.get("code") or cs.get("statusCode") or "")
+        res.delivered = code in ("011", "KB", "FS") or looks_delivered(res.status)
+
+        events = []
+        for a in pkg.get("activity") or []:
+            loc = ((a.get("location") or {}).get("address") or {})
+            place = ", ".join(str(x) for x in (
+                loc.get("city") or loc.get("City"),
+                loc.get("stateProvinceCode") or loc.get("StateProvinceCode"),
+                loc.get("country") or loc.get("countryCode") or loc.get("CountryCode"),
+            ) if x)
+            st = a.get("status") or {}
+            when = ((a.get("date") or "") + " " + (a.get("time") or "")).strip()
+            events.append({
+                "date": when,
+                "activity": st.get("description") or st.get("type", ""),
+                "location": place,
+            })
+        events.sort(key=lambda e: e["date"] or "")  # UPS returns newest-first
+        res.events = events
+        if events:
+            res.last_update = events[-1]["date"]
+            res.last_location = events[-1]["location"]
+        res.track_url = f"https://www.ups.com/track?loc=en_US&tracknum={tn}&requester=ST/"
+        return res
+
+
+# --------------------------------------------------------------------------- #
 # Manual / URL fallback  (no credentials, always works)
 # --------------------------------------------------------------------------- #
 COURIER_URLS = {
@@ -517,6 +627,7 @@ COURIER_URLS = {
     "ekart": "https://ekartlogistics.com/track/{tn}",
     "xpressbees": "https://www.xpressbees.com/track?awb={tn}",
     "amazon": "https://www.amazon.in/progress-tracker",
+    "ups": "https://www.ups.com/track?loc=en_US&tracknum={tn}&requester=ST/",
 }
 
 
@@ -567,6 +678,7 @@ ADAPTERS = {
     "delhivery": DelhiveryAdapter,
     "shiprocket": ShiprocketAdapter,
     "shadowfax": ShadowfaxAdapter,
+    "ups": UpsAdapter,
     "ship24": Ship24Adapter,
     "trackingmore": TrackingMoreAdapter,
     "manual": ManualAdapter,

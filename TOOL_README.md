@@ -101,6 +101,9 @@ the file — handy for servers and CI):
 | TrackingMore courier code | `TRACKINGMORE_COURIER_CODE` |
 | Shadowfax token | `SHADOWFAX_TOKEN` |
 | Shadowfax environment (`staging`/`production`) | `SHADOWFAX_ENV` |
+| UPS client ID | `UPS_CLIENT_ID` |
+| UPS client secret | `UPS_CLIENT_SECRET` |
+| UPS environment (`production`/`staging`) | `UPS_ENV` |
 
 No credentials are ever hardcoded in the code. Keep `config.json` out of
 version control.
@@ -120,6 +123,10 @@ version control.
 - **Shadowfax**: generate a token in the SFX 360 Partner Portal. Use
   `"env": "staging"` (dale.staging.shadowfax.in) while testing and swap to
   `production` when you go live. The token is static and does not expire.
+- **UPS**: register an app at developer.ups.com; you get a client ID and a client
+  secret. Use `"env": "staging"` (the CIE sandbox, wwwcie.ups.com) while testing
+  and `production` when live. Tokens last about 4 hours and are cached
+  automatically. UPS tracking numbers are the `1Z` + 16 character format.
 
 ---
 
@@ -245,6 +252,7 @@ and hsk.co.in.
 | `delhivery` | direct courier | `token` | Delhivery's own tracking API |
 | `shiprocket` | aggregator | `email`, `password` | Batches up to 50 AWBs per call |
 | `shadowfax` | direct courier | `token` | Shadowfax staging + production; batches up to 50 AWBs |
+| `ups` | direct courier | `client_id`, `client_secret` | UPS OAuth 2.0; `staging` = CIE sandbox |
 | `ship24` | aggregator | `api_key` | 1,500+ couriers incl. India Post |
 | `trackingmore` | aggregator | `api_key` | 1,600+ couriers |
 | `manual` | none | none | Returns the official tracking URL only |

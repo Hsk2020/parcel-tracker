@@ -283,6 +283,8 @@ const CARRIERS = [
     url:"https://www.amazon.in/progress-tracker" },
   { name:"Shadowfax",               re:/^SF\d{8,}$/i,
     url:"" },
+  { name:"UPS",                     re:/^(1Z[0-9A-Z]{16}|T\d{10})$/i,
+    url:"https://www.ups.com/track?loc=en_US&tracknum={tn}" },
   { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}[A-Z]{2}$/i,
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
   { name:"Delhivery",               re:/^\d{11,14}$/,

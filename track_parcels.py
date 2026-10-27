@@ -53,6 +53,9 @@ ENV_MAP = {
     ("trackingmore", "courier_code"): "TRACKINGMORE_COURIER_CODE",
     ("shadowfax", "token"): "SHADOWFAX_TOKEN",
     ("shadowfax", "env"): "SHADOWFAX_ENV",
+    ("ups", "client_id"): "UPS_CLIENT_ID",
+    ("ups", "client_secret"): "UPS_CLIENT_SECRET",
+    ("ups", "env"): "UPS_ENV",
 }
 
 DEFAULT_CONFIG = {
@@ -63,6 +66,7 @@ DEFAULT_CONFIG = {
         "ship24": {"api_key": ""},
         "trackingmore": {"api_key": "", "courier_code": ""},
         "shadowfax": {"token": "", "env": "staging"},
+        "ups": {"client_id": "", "client_secret": "", "env": "production"},
         "manual": {},
     },
 }
