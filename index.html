@@ -264,6 +264,8 @@ const CONFIG = {
   liveApi: "",
 
   // ---- GOOGLE ADSENSE ----
+  // Paste your AdSense publisher ID (ca-pub-...). Auto ads start working with
+  // just this. Slot IDs are optional - add them for fixed, hand-placed units.
   adSenseClient: "ca-pub-XXXXXXXXXXXXXXXX",
   adSlots: { top: "", bottom: "" },
 
@@ -479,23 +481,49 @@ function renderPromos(){
       <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.cta)} &rarr;</a>
     </div>`).join("");
 }
-function adsConfigured(){ return CONFIG.adSenseClient && !CONFIG.adSenseClient.includes("XXXX"); }
+function adsConfigured(){
+  const c = CONFIG.adSenseClient || "";
+  return c.startsWith("ca-pub-") && !c.includes("XXXX");
+}
 function renderAds(){
-  const place=(el,slot)=>{
-    if(adsConfigured()){
-      el.innerHTML=`<ins class="adsbygoogle" style="display:block" data-ad-client="${esc(CONFIG.adSenseClient)}"
-        data-ad-slot="${esc(slot)}" data-ad-format="auto" data-full-width-responsive="true"></ins>`;
-    }else{
-      el.innerHTML=`<div class="ad-ph"><div><b>Google AdSense slot</b><br>Paste your publisher ID and slot ID in CONFIG.</div></div>`;
+  const configured = adsConfigured();
+  const slots = CONFIG.adSlots || {};
+
+  const place = (el, slot) => {
+    if (!el) return;
+    if (!configured){
+      el.innerHTML = `<div class="ad-ph"><div><b>Google AdSense</b><br>Add your publisher ID in CONFIG to show ads.</div></div>`;
+    } else if (slot){
+      el.innerHTML = `<ins class="adsbygoogle" style="display:block"
+        data-ad-client="${esc(CONFIG.adSenseClient)}" data-ad-slot="${esc(slot)}"
+        data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+    } else {
+      el.innerHTML = "";   // Auto ads will place ads automatically
     }
   };
-  place(document.getElementById("ad-top"), CONFIG.adSlots.top);
-  place(document.getElementById("ad-bottom"), CONFIG.adSlots.bottom);
-  if(adsConfigured()){
-    const s=document.createElement("script"); s.async=true;
-    s.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client="+encodeURIComponent(CONFIG.adSenseClient);
-    s.crossOrigin="anonymous"; document.head.appendChild(s);
-    s.onload=()=>document.querySelectorAll("ins.adsbygoogle").forEach(()=>{ try{(adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){} });
+  place(document.getElementById("ad-top"), slots.top);
+  place(document.getElementById("ad-bottom"), slots.bottom);
+
+  if (!configured) return;
+
+  // One AdSense loader powers BOTH Auto ads and the manual slots above.
+  if (!document.querySelector("script[data-adsense]")){
+    const m = document.createElement("meta");
+    m.name = "google-adsense-account";
+    m.content = CONFIG.adSenseClient;
+    document.head.appendChild(m);
+
+    const s = document.createElement("script");
+    s.async = true;
+    s.setAttribute("data-adsense", "1");
+    s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(CONFIG.adSenseClient);
+    s.crossOrigin = "anonymous";
+    document.head.appendChild(s);
+    s.onload = () => {
+      document.querySelectorAll("ins.adsbygoogle").forEach(() => {
+        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
+      });
+    };
   }
 }
 
