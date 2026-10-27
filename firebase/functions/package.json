@@ -1,0 +1,12 @@
+{
+  "name": "hsk-track-functions",
+  "description": "Live parcel tracking endpoint for HSK Parcel Tracker",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-functions": "^5.0.0"
+  },
+  "private": true
+}

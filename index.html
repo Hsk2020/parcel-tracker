@@ -258,8 +258,9 @@ const CONFIG = {
   dataFile: "tracking_data.json",   // published parcel list from track_parcels.py
 
   // ---- LIVE STATUS (optional) ----
-  // Deploy worker/live-track-worker.js and paste its URL here, e.g.
-  //   liveApi: "https://hsk-track.<you>.workers.dev"
+  // Paste the URL of your live-status endpoint here. Either works:
+  //   Cloudflare Worker:  "https://hsk-track.<you>.workers.dev"
+  //   Firebase Function:  "https://asia-south1-<project>.cloudfunctions.net/track"
   // When set, the app fetches real live status for ANY number.
   liveApi: "",
 
@@ -344,7 +345,9 @@ async function loadPublished(){
 async function lookupLive(num){
   if(!CONFIG.liveApi) return null;
   try{
-    const r=await fetch(CONFIG.liveApi.replace(/\/$/,"")+"/?tracking_number="+encodeURIComponent(num),{cache:"no-store"});
+    const url=new URL(CONFIG.liveApi);
+    url.searchParams.set("tracking_number", num);
+    const r=await fetch(url.toString(),{cache:"no-store"});
     if(!r.ok) return null;
     const j=await r.json();
     if(j && (j.status||j.courier)) return {
