@@ -9,7 +9,8 @@
  *   Variables & Secrets  : AFTERSHIP_API_KEY      = <key>   (primary)
  *                          TRACKINGMORE_API_KEY   = <key>   (fallback, optional)
  *                          ALLOWED_ORIGINS        = <comma separated> (optional)
- *                          MAX_NEW_PER_DAY        = 40      (optional)
+ *                          MAX_NEW_PER_MONTH      = 45      (optional)
+ *                          MAX_NEW_PER_DAY        = 5       (optional)
  *                          RATE_LIMIT_PER_MIN     = 20      (optional)
  *
  * What changed from the first version, and why:
@@ -39,7 +40,11 @@ const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN || 20);
-const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 40);
+// The provider allowance is MONTHLY (AfterShip free = 50 shipments), so the
+// monthly cap is the real guard. The daily cap only stops a burst from eating
+// the whole month in one afternoon.
+const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 45);
+const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 5);
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
   "https://hsk-tracker-1a2b3-f20a4.web.app," +
@@ -82,20 +87,38 @@ const DETAIL_LABELS = {
 
 const cache = new Map();     // "TN|slug" -> { expires, value }
 const buckets = new Map();   // ip -> { start, count }
-let budget = { day: dayKey(), used: 0 };
+let budget = { month: monthKey(), monthUsed: 0, day: dayKey(), dayUsed: 0 };
 
 function dayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function budgetUsed() {
-  if (budget.day !== dayKey()) budget = { day: dayKey(), used: 0 };
-  return budget.used;
+function monthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function rollBudget() {
+  const d = dayKey(), m = monthKey();
+  if (budget.day !== d) { budget.day = d; budget.dayUsed = 0; }
+  if (budget.month !== m) { budget.month = m; budget.monthUsed = 0; }
+  return budget;
+}
+
+function budgetExhausted() {
+  const b = rollBudget();
+  return b.monthUsed >= MAX_NEW_PER_MONTH || b.dayUsed >= MAX_NEW_PER_DAY;
 }
 
 function consumeBudget() {
-  budgetUsed();
-  budget.used += 1;
+  const b = rollBudget();
+  b.monthUsed += 1;
+  b.dayUsed += 1;
+}
+
+function budgetSummary() {
+  const b = rollBudget();
+  return b.monthUsed + "/" + MAX_NEW_PER_MONTH + " this month, " +
+         b.dayUsed + "/" + MAX_NEW_PER_DAY + " today";
 }
 
 function rateLimited(ip) {
@@ -358,7 +381,7 @@ http('track', async (req, res) => {
     return;
   }
 
-  const mayRegister = budgetUsed() < MAX_NEW_PER_DAY;
+  const mayRegister = !budgetExhausted();
 
   let out = null;
   let source = "";
@@ -410,7 +433,7 @@ http('track', async (req, res) => {
   cacheSet(cacheKey, payload);
   console.log(JSON.stringify({
     ref: shortRef(tn), slug: slugRaw, source, events: (out.events || []).length,
-    registered: registeredAny, ms, budget: budgetUsed() + "/" + MAX_NEW_PER_DAY,
+    registered: registeredAny, ms, budget: budgetSummary(),
   }));
   res.set("X-Cache", "miss");
   res.json(payload);
