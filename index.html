@@ -384,9 +384,16 @@ async function trackNumber(numRaw, courierOverride){
       if(!parcel.courier && det) parcel.courier=det.name;
     } else {
       // 3) manual hand-off
+      const isTBA=/^TBA\d{10,}$/i.test(num);
+      const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
       parcel={ number:num, courier:(det&&det.name)||"", status:"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
-        trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual" };
+        trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
+        note: isTBA
+          ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
+          : isAmzOrder
+          ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
+          : "" };
     }
   }
   parcel.addedAt=Date.now();
@@ -440,6 +447,7 @@ function showDetail(num){
         <button class="danger" id="removeBtn">Remove</button>
       </div>
     </div>
+    ${p.note?`<div style="margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.45">${esc(p.note)}</div>`:""}
     ${events.length?`<div class="timeline">${events.map(e=>`
       <div class="tl"><div class="dot2"></div><div>
         <div class="act">${esc(e.activity||"-")}</div>
