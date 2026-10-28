@@ -159,7 +159,7 @@ async function trackingmoreLookup(tn, courierCode, key) {
     for (const e of (info.trackinfo || [])) {
       events.push({
         date: e.checkpoint_date || e.Date || "",
-        activity: e.details || e.StatusDescription || e.checkpoint_status || "",
+        activity: e.tracking_detail || e.details || e.StatusDescription || e.checkpoint_status || e.status_description || "",
         location: e.location || e.Details || "",
       });
     }
@@ -167,7 +167,7 @@ async function trackingmoreLookup(tn, courierCode, key) {
   for (const e of (item.tracking_events || [])) {
     events.push({
       date: e.checkpoint_date || "",
-      activity: e.tracking_detail || e.checkpoint_delivery_status || "",
+      activity: e.tracking_detail || e.details || e.checkpoint_delivery_status || e.status_description || "",
       location: e.location || "",
     });
   }
