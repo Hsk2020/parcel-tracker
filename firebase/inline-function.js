@@ -40,6 +40,24 @@ const AS_STATUS = {
   expired: "Expired",
 };
 
+// TrackingMore returns raw status codes as scan text (PickDone, InTransit...).
+// Map the common ones to wording a customer can read.
+const DETAIL_LABELS = {
+  "pending": "Shipment info received",
+  "out for pickup": "Out for pickup",
+  "pickdone": "Picked up",
+  "intransit": "In transit",
+  "reached at destination": "Reached destination hub",
+  "out for delivery": "Out for delivery",
+  "delivered": "Delivered",
+  "undelivered": "Delivery attempted",
+};
+
+function prettyActivity(s) {
+  const raw = String(s || "").trim();
+  return DETAIL_LABELS[raw.toLowerCase()] || raw;
+}
+
 function pretty(s) {
   const raw = String(s || "");
   return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -159,7 +177,7 @@ async function trackingmoreLookup(tn, courierCode, key) {
     for (const e of (info.trackinfo || [])) {
       events.push({
         date: e.checkpoint_date || e.Date || "",
-        activity: e.tracking_detail || e.details || e.StatusDescription || e.checkpoint_status || e.status_description || "",
+        activity: prettyActivity(e.tracking_detail || e.details || e.StatusDescription || e.checkpoint_status || e.status_description || ""),
         location: e.location || e.Details || "",
       });
     }
@@ -167,7 +185,7 @@ async function trackingmoreLookup(tn, courierCode, key) {
   for (const e of (item.tracking_events || [])) {
     events.push({
       date: e.checkpoint_date || "",
-      activity: e.tracking_detail || e.details || e.checkpoint_delivery_status || e.status_description || "",
+      activity: prettyActivity(e.tracking_detail || e.details || e.checkpoint_delivery_status || e.status_description || ""),
       location: e.location || "",
     });
   }
