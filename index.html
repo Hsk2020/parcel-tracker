@@ -304,7 +304,7 @@ const CARRIERS = [
     url:"https://www.amazon.in/gp/css/order-history" },
 
   // --- Prefix-based couriers (checked before generic numbers) ---
-  { name:"Ekart",                   re:/^(FMPC|DSPC|SHCP)\w+$/i,
+  { name:"Ekart",                   re:/^(FMPC|FMPP|DSPC|SHCP|FMP)\w*\d{6,}$/i,
     url:"https://ekartlogistics.com/track/{tn}" },
   { name:"XpressBees",              re:/^(XB|XP)\d{6,}$/i,
     url:"https://www.xpressbees.com/shipment/tracking?awbNo={tn}" },
