@@ -342,7 +342,7 @@ const TM_CODES = {
 };
 
 function detectCarrier(num){
-  const n=(num||"").trim();
+  const n=(num||"").replace(/\s+/g,"").trim();
   if(!n) return null;
   for(const c of CARRIERS){ if(c.re.test(n)) return c; }
   return null;
@@ -404,7 +404,7 @@ async function lookupLive(num, det){
 }
 
 async function trackNumber(numRaw, courierOverride){
-  const num=(numRaw||"").trim().toUpperCase();
+  const num=(numRaw||"").replace(/\s+/g,"").trim().toUpperCase();
   if(!num){ toast("Enter a tracking number"); return; }
 
   const det = courierOverride && courierOverride!=="Auto-detect"
