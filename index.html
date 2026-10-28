@@ -316,6 +316,16 @@ const CARRIERS = [
   { name:"Blue Dart",               re:/^\d{9,10}$/,
     url:"https://www.bluedart.com/tracking" }
 ];
+// TrackingMore courier codes, so the function does not have to guess from the
+// number. Ambiguous formats (e.g. 15-digit XpressBees) otherwise match the
+// wrong carrier entirely.
+const TM_CODES = {
+  "Amazon":"amazon", "Shadowfax":"shadowfax", "UPS":"ups",
+  "India Post / Speed Post":"india-post", "Delhivery":"delhivery",
+  "Ekart":"ekart", "DTDC":"dtdc", "Blue Dart":"bluedart",
+  "XpressBees":"xpressbees", "Valmo (Meesho)":"", "Amazon order ID":""
+};
+
 function detectCarrier(num){
   const n=(num||"").trim();
   if(!n) return null;
@@ -357,11 +367,13 @@ async function loadPublished(){
 }
 
 /* ============================ tracking ============================ */
-async function lookupLive(num){
+async function lookupLive(num, det){
   if(!CONFIG.liveApi) return null;
   try{
     const url=new URL(CONFIG.liveApi);
     url.searchParams.set("tracking_number", num);
+    const code = det && TM_CODES[det.name];
+    if(code) url.searchParams.set("courier_code", code);
     const r=await fetch(url.toString(),{cache:"no-store"});
     if(!r.ok) return null;
     const j=await r.json();
@@ -391,7 +403,7 @@ async function trackNumber(numRaw, courierOverride){
       trackUrl:pub.track_url||courierUrl((det&&det.name)||pub.courier,num), events:pub.events||[], source:"published" };
   } else {
     // 2) live API (if configured)
-    const live = await lookupLive(num);
+    const live = await lookupLive(num, det);
     if(live){
       parcel=live;
       if(!parcel.courier && det) parcel.courier=det.name;

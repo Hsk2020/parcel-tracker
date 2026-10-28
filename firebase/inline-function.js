@@ -72,15 +72,18 @@ exports.track = async (req, res) => {
   }
   const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
 
-  // 1) Best-effort courier detection, then create (create-and-get in v4)
-  let courierCode = "";
-  try {
-    const dr = await fetch(`${BASE}/couriers/detect`, {
-      method: "POST", headers, body: JSON.stringify({ tracking_number: tn }),
-    });
-    const dd = (await dr.json()).data;
-    courierCode = (Array.isArray(dd) ? (dd[0] || {}).courier_code : (dd || {}).courier_code) || "";
-  } catch (_) {}
+  // 1) Courier code: explicit when supplied, else auto-detect.
+  const ccParam = String((req.query && req.query.courier_code) || "").trim().toLowerCase();
+  let courierCode = ccParam;
+  if (!courierCode) {
+    try {
+      const dr = await fetch(`${BASE}/couriers/detect`, {
+        method: "POST", headers, body: JSON.stringify({ tracking_number: tn }),
+      });
+      const dd = (await dr.json()).data;
+      courierCode = (Array.isArray(dd) ? (dd[0] || {}).courier_code : (dd || {}).courier_code) || "";
+    } catch (_) {}
+  }
 
   let item = null;
   try {

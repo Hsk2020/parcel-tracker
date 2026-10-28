@@ -58,15 +58,21 @@ http('track', async (req, res) => {
   }
   const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
 
-  // 1) Best-effort courier detection, then create (create-and-get in v4)
-  let courierCode = "";
-  try {
-    const dr = await fetch(`${BASE}/couriers/detect`, {
-      method: "POST", headers, body: JSON.stringify({ tracking_number: tn }),
-    });
-    const dd = (await dr.json()).data;
-    courierCode = (Array.isArray(dd) ? (dd[0] || {}).courier_code : (dd || {}).courier_code) || "";
-  } catch (_) { /* ignore */ }
+  // 1) Courier code: use the explicit one when supplied (the app knows the
+  //    courier), otherwise fall back to TrackingMore's auto-detection. Without
+  //    this, an ambiguous number can match the wrong carrier entirely - a
+  //    15-digit XpressBees AWB was being detected as BRT Bartolini.
+  const ccParam = String((req.query && req.query.courier_code) || "").trim().toLowerCase();
+  let courierCode = ccParam;
+  if (!courierCode) {
+    try {
+      const dr = await fetch(`${BASE}/couriers/detect`, {
+        method: "POST", headers, body: JSON.stringify({ tracking_number: tn }),
+      });
+      const dd = (await dr.json()).data;
+      courierCode = (Array.isArray(dd) ? (dd[0] || {}).courier_code : (dd || {}).courier_code) || "";
+    } catch (_) { /* ignore */ }
+  }
 
   let item = null;
   try {
