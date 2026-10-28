@@ -1,0 +1,43 @@
+name: Deploy to Firebase Hosting
+
+# Publishes the site to Firebase Hosting automatically on every push to main,
+# so no one has to run `firebase deploy` by hand.
+#
+# ONE-TIME SETUP (about 3 minutes):
+#  1. Open https://console.cloud.google.com/iam-admin/serviceaccounts
+#  2. Create service account -> name it "github-deploy" -> Create and continue
+#     -> Grant role: "Firebase Hosting Admin" (and "Cloud Run Viewer" is not needed)
+#     -> Done
+#  3. Click the new account -> Keys tab -> Add key -> Create new key -> JSON -> download
+#  4. GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret
+#     Name:  FIREBASE_SERVICE_ACCOUNT
+#     Value: paste the WHOLE contents of the downloaded .json file
+#  5. Done. Every push to main now deploys automatically.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-hosting
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: hsk-tracker-1a2b3
+          channelId: live
