@@ -4,7 +4,7 @@
    - tracking_data.json: network-first (always fresh, falls back to cache)
    - cross-origin requests (ads, courier sites): left untouched
 */
-const CACHE = "hsk-tracker-v1";
+const CACHE = "hsk-tracker-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
