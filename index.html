@@ -426,6 +426,7 @@ async function trackNumber(numRaw, courierOverride){
       // 3) manual hand-off
       const isTBA=/^TBA\d{10,}$/i.test(num);
       const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
+      const isStoreOrder=/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(num);
       parcel={ number:num, courier:(det&&det.name)||"", status:"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
         trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
@@ -433,6 +434,8 @@ async function trackNumber(numRaw, courierOverride){
           ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
           : isAmzOrder
           ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
+          : isStoreOrder
+          ? "This looks like a store order ID, not a courier tracking number. Open the seller's website or app and use their Track Order page (usually the order ID plus your registered email or phone). When the parcel ships, the shipping email carries the courier AWB - enter that here for live tracking."
           : "No scans found yet. Most parcels only appear 12-24 hours after dispatch, once the carrier scans them at its hub. Try again later, or open the courier's own page. If the courier name looks wrong, pick the right one from the dropdown and search again." };
     }
   }
