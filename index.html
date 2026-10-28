@@ -282,26 +282,37 @@ const CONFIG = {
 
 /* ==================== courier detection (best effort) ==================== */
 const CARRIERS = [
+  // --- Amazon (special: neither form is a courier tracking number) ---
   { name:"Amazon",                  re:/^TBA\d{10,}$/i,
     url:"https://www.amazon.in/progress-tracker" },
   { name:"Amazon order ID",         re:/^\d{3}-\d{7}-\d{7}$/,
     url:"https://www.amazon.in/gp/css/order-history" },
-  { name:"Shadowfax",               re:/^SF\d{8,}$/i,
+
+  // --- Prefix-based couriers (checked before generic numbers) ---
+  { name:"Ekart",                   re:/^(FMPC|DSPC|SHCP)\w+$/i,
+    url:"https://ekartlogistics.com/track/{tn}" },
+  { name:"XpressBees",              re:/^(XB|XP)\d{6,}$/i,
+    url:"https://www.xpressbees.com/track?awb={tn}" },
+  { name:"DTDC",                    re:/^(DTDC\w+|[DVXZ]\d{7,11})$/i,
+    url:"https://www.dtdc.in/tracking/tracking_results.asp" },
+  { name:"Valmo (Meesho)",          re:/^VL[LR]?\d{6,}$/i,
     url:"" },
+  { name:"Shadowfax",               re:/^(SF|SFX)\d{6,}[A-Z]{0,3}$/i,
+    url:"" },
+  { name:"Delhivery",               re:/^DL\d{6,}$/i,
+    url:"https://www.delhivery.com/track/package/{tn}" },
+  { name:"Blue Dart",               re:/^BD\d{6,}$/i,
+    url:"https://www.bluedart.com/tracking" },
   { name:"UPS",                     re:/^(1Z[0-9A-Z]{16}|T\d{10})$/i,
     url:"https://www.ups.com/track?loc=en_US&tracknum={tn}" },
-  { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}[A-Z]{2}$/i,
+  { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}(IN|[A-Z]{2})$/i,
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
+
+  // --- Generic numeric: matches several couriers, so treat as a best guess ---
   { name:"Delhivery",               re:/^\d{11,14}$/,
     url:"https://www.delhivery.com/track/package/{tn}" },
-  { name:"Ekart",                   re:/^[A-Z]{2}\d{9,}$/i,
-    url:"https://ekartlogistics.com/track/{tn}" },
-  { name:"DTDC",                    re:/^[A-Z]\d{8,10}$/i,
-    url:"https://www.dtdc.in/tracking/tracking_results.asp" },
-  { name:"Blue Dart",               re:/^\d{10,11}$/,
-    url:"https://www.bluedart.com/tracking" },
-  { name:"XpressBees",              re:/^[A-Z0-9]{10,16}$/i,
-    url:"https://www.xpressbees.com/track?awb={tn}" }
+  { name:"Blue Dart",               re:/^\d{9,10}$/,
+    url:"https://www.bluedart.com/tracking" }
 ];
 function detectCarrier(num){
   const n=(num||"").trim();
@@ -393,7 +404,7 @@ async function trackNumber(numRaw, courierOverride){
           ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
           : isAmzOrder
           ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
-          : "" };
+          : "No scans found yet. Most parcels only appear 12-24 hours after dispatch, once the carrier scans them at its hub. Try again later, or open the courier's own page. If the courier name looks wrong, pick the right one from the dropdown and search again." };
     }
   }
   parcel.addedAt=Date.now();
