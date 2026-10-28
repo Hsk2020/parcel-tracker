@@ -390,6 +390,8 @@ async function lookupLive(num, det){
     const code = det && TM_CODES[det.name];
     if(code) url.searchParams.set("courier_code", code);
     const r=await fetch(url.toString(),{cache:"no-store"});
+    if(r.status===429){ toast("Too many searches - wait a minute and try again"); return null; }
+    if(r.status===503){ toast("Live lookup is paused for today - open the courier's own page"); return null; }
     if(!r.ok) return null;
     const j=await r.json();
     if(j && (j.status||j.courier)) return {
