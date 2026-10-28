@@ -309,6 +309,8 @@ const CARRIERS = [
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
 
   // --- Generic numeric: matches several couriers, so treat as a best guess ---
+  { name:"XpressBees",              re:/^\d{15}$/,
+    url:"https://www.xpressbees.com/track?awb={tn}" },
   { name:"Delhivery",               re:/^\d{11,14}$/,
     url:"https://www.delhivery.com/track/package/{tn}" },
   { name:"Blue Dart",               re:/^\d{9,10}$/,
