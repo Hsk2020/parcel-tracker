@@ -628,8 +628,28 @@ async function boot(){
     deferred.prompt(); await deferred.userChoice; deferred=null; document.getElementById("installBtn").hidden=true;
   });
 
-  // service worker
-  if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+  // Service worker: keep the app current without anyone pressing refresh.
+  //  - update() on every open and whenever the tab becomes visible again
+  //  - when a new version takes control, reload once so it is used immediately
+  if("serviceWorker" in navigator){
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(!hadController || reloading) return;   // first install: no reload needed
+      reloading = true;
+      location.reload();
+    });
+
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      reg.update();
+      document.addEventListener("visibilitychange", () => {
+        if(document.visibilityState === "visible") reg.update().catch(()=>{});
+      });
+      // Long-lived open tabs: check every 15 minutes.
+      setInterval(() => { reg.update().catch(()=>{}); }, 15 * 60 * 1000);
+    }).catch(()=>{});
+  }
 }
 boot();
 </script>
