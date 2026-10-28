@@ -292,7 +292,7 @@ const CARRIERS = [
   { name:"Ekart",                   re:/^(FMPC|DSPC|SHCP)\w+$/i,
     url:"https://ekartlogistics.com/track/{tn}" },
   { name:"XpressBees",              re:/^(XB|XP)\d{6,}$/i,
-    url:"https://www.xpressbees.com/track?awb={tn}" },
+    url:"https://www.xpressbees.com/shipment/tracking?awbNo={tn}" },
   { name:"DTDC",                    re:/^(DTDC\w+|[DVXZ]\d{7,11})$/i,
     url:"https://www.dtdc.in/tracking/tracking_results.asp" },
   { name:"Valmo (Meesho)",          re:/^VL[LR]?\d{6,}$/i,
@@ -310,7 +310,7 @@ const CARRIERS = [
 
   // --- Generic numeric: matches several couriers, so treat as a best guess ---
   { name:"XpressBees",              re:/^\d{15}$/,
-    url:"https://www.xpressbees.com/track?awb={tn}" },
+    url:"https://www.xpressbees.com/shipment/tracking?awbNo={tn}" },
   { name:"Delhivery",               re:/^\d{11,14}$/,
     url:"https://www.delhivery.com/track/package/{tn}" },
   { name:"Blue Dart",               re:/^\d{9,10}$/,
