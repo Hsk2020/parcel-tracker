@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T20:08:14",
+  "generated_at": "2026-10-29T00:40:37",
   "parcels": [
     {
       "tracking_number": "1Z57Y68V0494199622",
@@ -7,8 +7,8 @@
       "courier": "ups",
       "status": "In Transit",
       "delivered": "",
-      "last_location": "Chek Lap Kok  HK",
-      "last_update": "2026-10-28T03:18:32",
+      "last_location": "Pampanga  PH",
+      "last_update": "2026-10-29T01:31:00",
       "status_detail": "",
       "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
       "provider": "trackingmore",
@@ -28,6 +28,16 @@
           "date": "2026-10-28T03:18:32",
           "activity": "",
           "location": "Chek Lap Kok  HK"
+        },
+        {
+          "date": "2026-10-28T23:47:00",
+          "activity": "",
+          "location": "Chek Lap Kok  HK"
+        },
+        {
+          "date": "2026-10-29T01:31:00",
+          "activity": "",
+          "location": "Pampanga  PH"
         }
       ]
     }
