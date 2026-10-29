@@ -216,6 +216,8 @@
       <form class="field" id="addForm" autocomplete="off">
         <input id="numInput" type="text" inputmode="text" placeholder="Enter tracking number" aria-label="Tracking number">
         <select id="courierSelect" aria-label="Courier"></select>
+        <input id="mobileInput" type="tel" inputmode="numeric" maxlength="10"
+               placeholder="Sender/receiver mobile (APSRTC)" aria-label="Mobile number" hidden>
         <button class="btn" type="submit">Track</button>
       </form>
       <p class="note" id="detectNote"></p>
@@ -421,6 +423,16 @@ async function trackNumber(numRaw, courierOverride){
       ? CARRIERS.find(c=>c.name===courierOverride)
       : detectCarrier(num);
 
+  // APSRTC Cargo gates its tracking page behind a mobile number.
+  const mobEl = document.getElementById("mobileInput");
+  const mobile = (mobEl && mobEl.value || "").replace(/\D/g, "");
+  if(det && det.name === "APSRTC Cargo"){
+    if(!/^[6-9]\d{9}$/.test(mobile)){
+      toast("APSRTC needs a 10-digit sender or receiver mobile number");
+      return;
+    }
+  }
+
   // 1) published list
   const pub = PUBLISHED.parcels.find(p=>(p.tracking_number||"").toUpperCase()===num);
   let parcel;
@@ -443,6 +455,7 @@ async function trackNumber(numRaw, courierOverride){
       parcel={ number:num, courier:(det&&det.name)||"", status:"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
         trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
+        mobile: (det && det.name === "APSRTC Cargo") ? mobile : "",
         note: isTBA
           ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
           : isAmzOrder
@@ -548,6 +561,7 @@ function showDetail(num){
       </div>
       ${p.lastUpdate?`<div class="upd">Updated ${esc(p.lastUpdate)}${p.lastLocation?" &middot; "+esc(p.lastLocation):""}</div>`:""}
       ${p.eta?`<div class="upd">Expected delivery ${esc(p.eta)}</div>`:""}
+      ${p.mobile?`<div class="upd">Mobile for APSRTC lookup: ${esc(p.mobile)}</div>`:""}
       <div class="actions">
         ${p.trackUrl?`<a href="${esc(p.trackUrl)}" target="_blank" rel="noopener">Track on courier site</a>`:""}
         <button id="shareBtn">Share</button>
@@ -683,9 +697,24 @@ async function boot(){
     else { note.textContent=""; }
   });
 
+  // APSRTC needs the sender's or receiver's mobile number as well as the AWB.
+  const mob = document.getElementById("mobileInput");
+  const syncMobileField = () => {
+    const isApsrtc = document.getElementById("courierSelect").value === "APSRTC Cargo";
+    mob.hidden = !isApsrtc;
+    if(!isApsrtc) mob.value = "";
+  };
+  document.getElementById("courierSelect").addEventListener("change", syncMobileField);
+  syncMobileField();
+
   document.getElementById("addForm").addEventListener("submit",e=>{
     e.preventDefault();
-    trackNumber(numInput.value, document.getElementById("courierSelect").value).then(()=>{ numInput.value=""; document.getElementById("detectNote").textContent=""; });
+    trackNumber(numInput.value, document.getElementById("courierSelect").value).then(()=>{
+      if(saved.length && saved[0].number){
+        numInput.value=""; document.getElementById("detectNote").textContent="";
+        if(mob && !mob.hidden){ mob.value=""; }
+      }
+    });
   });
 
   document.getElementById("list").addEventListener("click",e=>{
