@@ -302,8 +302,8 @@ const CONFIG = {
 /* ==================== courier detection (best effort) ==================== */
 const CARRIERS = [
   // --- Amazon (special: neither form is a courier tracking number) ---
-  { name:"Amazon",                  re:/^TBA\d{10,}$/i,
-    url:"https://www.amazon.in/progress-tracker" },
+  { name:"Amazon",                  re:/^TB[ACM]\d{10,}$/i,
+    url:"https://track.amazon.in/tracking/{tn}?trackingId={tn}" },
   { name:"Amazon order ID",         re:/^\d{3}-\d{7}-\d{7}$/,
     url:"https://www.amazon.in/gp/css/order-history" },
 
@@ -361,7 +361,7 @@ function detectCarrier(num){
 }
 function courierUrl(name, num){
   const c=CARRIERS.find(x=>x.name===name);
-  if(c && c.url) return c.url.includes("{tn}") ? c.url.replace("{tn}", encodeURIComponent(num)) : c.url;
+  if(c && c.url) return c.url.includes("{tn}") ? c.url.split("{tn}").join(encodeURIComponent(num)) : c.url;
   // No known tracking URL for this courier - fall back to a search so there's always a way through.
   return "https://www.google.com/search?q=" + encodeURIComponent((name?name+" ":"") + "track " + num);
 }
