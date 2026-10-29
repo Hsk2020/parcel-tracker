@@ -47,6 +47,8 @@ const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 45);
 const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 5);
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
+  "https://track.hsk2020.in," +
+  "https://track.hsk.co.in," +
   "https://hsk-tracker-1a2b3-f20a4.web.app," +
   "https://hsk-tracker-1a2b3.firebaseapp.com," +
   "https://hsk2020.github.io," +
