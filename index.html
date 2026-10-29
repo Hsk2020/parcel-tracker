@@ -478,6 +478,24 @@ async function refreshSaved(){
   if(changed) toast(changed + (changed > 1 ? " parcels" : " parcel") + " updated");
 }
 
+/* Deep link: /?tracking_number=FMPP4400829920&courier=ekart opens on that parcel. */
+function deepLinkParams(){
+  const q = new URLSearchParams(location.search);
+  const num = (q.get("tracking_number") || q.get("tn") || q.get("awb") || q.get("number") || "").trim();
+  const courier = (q.get("courier") || q.get("courier_code") || "").trim();
+  return { num, courier };
+}
+
+/* Build a shareable link for one parcel. */
+function parcelLink(p){
+  const base = location.origin + location.pathname;
+  const q = new URLSearchParams({ tracking_number: p.number });
+  const code = TM_CODES[p.courier] ||
+    (Object.values(TM_CODES).includes(String(p.courier||"").toLowerCase()) ? String(p.courier).toLowerCase() : "");
+  if(code) q.set("courier", code);
+  return base + "?" + q.toString();
+}
+
 function renderList(){
   const el=document.getElementById("list");
   document.getElementById("countPill").textContent = saved.length ? saved.length+" saved" : "";
@@ -544,11 +562,12 @@ function showDetail(num){
   if(rb) rb.onclick=()=>{ saved=saved.filter(x=>x.number!==num); persist(); renderList(); showTab("parcels"); toast("Removed"); };
   const sb=document.getElementById("shareBtn");
   if(sb) sb.onclick=async()=>{
-    const url=location.origin+location.pathname;
+    const url=parcelLink(p);
     const text=`Track parcel ${p.number}${p.status?" - "+p.status:""}`;
     if(navigator.share){ try{ await navigator.share({title:"Parcel "+p.number,text,url}); }catch(e){} }
     else { try{ await navigator.clipboard.writeText(text+" "+url); toast("Copied to clipboard"); }catch(e){ toast(text); } }
   };
+  try{ history.replaceState(null, "", parcelLink(p)); }catch(e){}
   window.scrollTo({top:0});
 }
 
@@ -628,6 +647,18 @@ async function boot(){
   await loadPublished();
   renderList();
   refreshSaved();
+
+  // Open straight onto a parcel if the URL names one.
+  const dl = deepLinkParams();
+  if(dl.num){
+    let override = "Auto-detect";
+    if(dl.courier){
+      const hit = CARRIERS.find(c => c.name.toLowerCase() === dl.courier.toLowerCase()) ||
+                  CARRIERS.find(c => TM_CODES[c.name] === dl.courier.toLowerCase());
+      if(hit) override = hit.name;
+    }
+    await trackNumber(dl.num, override);
+  }
 
   const numInput=document.getElementById("numInput");
   numInput.addEventListener("input",()=>{
