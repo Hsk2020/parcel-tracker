@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-29T00:40:37",
+  "generated_at": "2026-10-29T09:36:40",
   "parcels": [
     {
       "tracking_number": "1Z57Y68V0494199622",
@@ -7,8 +7,8 @@
       "courier": "ups",
       "status": "In Transit",
       "delivered": "",
-      "last_location": "Pampanga  PH",
-      "last_update": "2026-10-29T01:31:00",
+      "last_location": "Bengaluru Airport  IN",
+      "last_update": "2026-10-29T09:32:00",
       "status_detail": "",
       "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
       "provider": "trackingmore",
@@ -16,28 +16,38 @@
       "events": [
         {
           "date": "2026-10-26T14:38:10",
-          "activity": "",
+          "activity": "Shipper created a label, UPS has not received the package yet.",
           "location": "HK"
         },
         {
           "date": "2026-10-28T03:18:31",
-          "activity": "",
+          "activity": "Arrived at Facility",
           "location": "Chek Lap Kok  HK"
         },
         {
           "date": "2026-10-28T03:18:32",
-          "activity": "",
+          "activity": "Export Scan",
           "location": "Chek Lap Kok  HK"
         },
         {
           "date": "2026-10-28T23:47:00",
-          "activity": "",
+          "activity": "Departed from Facility",
           "location": "Chek Lap Kok  HK"
         },
         {
           "date": "2026-10-29T01:31:00",
-          "activity": "",
+          "activity": "Arrived at Facility",
           "location": "Pampanga  PH"
+        },
+        {
+          "date": "2026-10-29T05:39:00",
+          "activity": "Departed from Facility",
+          "location": "Pampanga  PH"
+        },
+        {
+          "date": "2026-10-29T09:32:00",
+          "activity": "Arrived at Facility",
+          "location": "Bengaluru Airport  IN"
         }
       ]
     }
