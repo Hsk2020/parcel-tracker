@@ -422,7 +422,8 @@ class TrackingMoreAdapter(CourierAdapter):
             for e in info.get("trackinfo") or []:
                 events.append({
                     "date": e.get("checkpoint_date") or e.get("Date", ""),
-                    "activity": (e.get("details") or e.get("StatusDescription")
+                    "activity": (e.get("tracking_detail") or e.get("details")
+                                 or e.get("StatusDescription")
                                  or e.get("checkpoint_status", "")),
                     "location": e.get("location") or e.get("Details", ""),
                 })
