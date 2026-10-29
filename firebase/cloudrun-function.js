@@ -197,6 +197,9 @@ function asNormalise(t, tn, slug) {
     last_update: last.checkpoint_time || t.updated_at || "",
     track_url: t.courier_redirect_link || t.courier_tracking_link ||
       "https://www.aftership.com/track/" + encodeURIComponent(tn),
+    eta: t.expected_delivery ||
+      (t.aftership_estimated_delivery_date &&
+       t.aftership_estimated_delivery_date.estimated_delivery_date) || "",
     events: cps.map((c) => ({
       date: c.checkpoint_time || "",
       activity: prettyActivity(c.message || pretty(c.tag || "")),
@@ -282,6 +285,8 @@ function tmNormalise(item, tn, courierCode) {
     last_location: (events[events.length - 1] || {}).location || "",
     last_update: (events[events.length - 1] || {}).date || item.last_update_time || "",
     track_url: "https://www.trackingmore.com/track/" + encodeURIComponent(tn),
+    eta: item.expected_delivery || item.scheduled_delivery_date ||
+         item.expected_delivery_date || "",
     events,
   };
 }

@@ -179,6 +179,8 @@
         color:var(--muted);line-height:1.9}
   .foot a{color:var(--brand);text-decoration:none;margin:0 5px}
   .foot a:hover{text-decoration:underline}
+  .newdot{display:inline-block;width:7px;height:7px;border-radius:50%;
+          background:var(--accent);margin-right:6px;vertical-align:middle}
 
   .hidden{display:none !important}
   .toast{
@@ -397,7 +399,7 @@ async function lookupLive(num, det){
     if(j && (j.status||j.courier)) return {
       number:num, courier:j.courier||"", status:j.status||"", delivered:j.delivered?"YES":"",
       lastLocation:j.last_location||"", lastUpdate:j.last_update||"",
-      trackUrl:j.track_url||"", events:j.events||[], source:"live"
+      eta:j.eta||"", trackUrl:j.track_url||"", events:j.events||[], source:"live"
     };
   }catch(e){}
   return null;
@@ -449,6 +451,33 @@ async function trackNumber(numRaw, courierOverride){
 }
 
 /* ============================ render ============================ */
+/* Re-check saved parcels in the background and flag the ones that moved.
+   Runs at most once per 15 minutes per parcel, capped at 8 parcels a visit so
+   it never burns through the provider's monthly allowance. */
+async function refreshSaved(){
+  const stale = saved.filter(p => {
+    if(!p.number) return false;
+    if(/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(p.number)) return false;   // store order ID
+    if(/^\d{3}-\d{7}-\d{7}$/.test(p.number)) return false;            // Amazon order ID
+    return !p.checkedAt || (Date.now() - p.checkedAt) > 15*60*1000;
+  }).slice(0, 8);
+  if(!stale.length) return;
+
+  let changed = 0;
+  for(const p of stale){
+    const det = p.courier ? { name: p.courier } : detectCarrier(p.number);
+    let live = null;
+    try { live = await lookupLive(p.number, det); } catch(e) {}
+    p.checkedAt = Date.now();
+    if(live){
+      if(p.status && live.status && p.status !== live.status){ p.updatedFlag = true; changed++; }
+      Object.assign(p, live);
+    }
+  }
+  persist(); renderList();
+  if(changed) toast(changed + (changed > 1 ? " parcels" : " parcel") + " updated");
+}
+
 function renderList(){
   const el=document.getElementById("list");
   document.getElementById("countPill").textContent = saved.length ? saved.length+" saved" : "";
@@ -462,7 +491,7 @@ function renderList(){
     return `<div class="card" data-num="${esc(p.number)}">
       <div class="left">
         <div class="num">${esc(p.number)}</div>
-        <div class="meta">${esc(p.courier||"Courier not detected")}${p.lastUpdate?" &middot; "+esc(p.lastUpdate):""}</div>
+        <div class="meta">${p.updatedFlag?'<span class="newdot" title="Updated"></span>':''}${esc(p.courier||"Courier not detected")}${p.lastUpdate?" &middot; "+esc(p.lastUpdate):""}</div>
       </div>
       <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
       <span class="chev">&#8250;</span>
@@ -473,6 +502,7 @@ function renderList(){
 function showDetail(num){
   const p=saved.find(x=>x.number===num);
   if(!p) return;
+  if(p.updatedFlag){ p.updatedFlag=false; persist(); }
   const cls=statusClass(p);
   const st=p.error?"Status unavailable":(p.status||"Added");
   const events=(p.events||[]).slice().reverse();
@@ -486,6 +516,7 @@ function showDetail(num){
         <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
       </div>
       ${p.lastUpdate?`<div class="upd">Updated ${esc(p.lastUpdate)}${p.lastLocation?" &middot; "+esc(p.lastLocation):""}</div>`:""}
+      ${p.eta?`<div class="upd">Expected delivery ${esc(p.eta)}</div>`:""}
       <div class="actions">
         ${p.trackUrl?`<a href="${esc(p.trackUrl)}" target="_blank" rel="noopener">Track on courier site</a>`:""}
         <button id="shareBtn">Share</button>
@@ -596,6 +627,7 @@ async function boot(){
   loadSaved(); fillCourierSelect(); renderPromos(); renderAds();
   await loadPublished();
   renderList();
+  refreshSaved();
 
   const numInput=document.getElementById("numInput");
   numInput.addEventListener("input",()=>{
