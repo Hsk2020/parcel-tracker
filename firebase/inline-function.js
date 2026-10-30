@@ -55,11 +55,11 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
   "http://localhost:8080,http://127.0.0.1:8080"
 ).split(",").map((s) => s.trim()).filter(Boolean);
 
-// Courier codes we accept. Anything else is rejected rather than forwarded.
-const COURIERS = new Set([
-  "amazon", "bluedart", "delhivery", "dtdc", "ecom-express", "ekart",
-  "fedex", "india-post", "shadowfax", "ups", "valmo", "xpressbees",
-]);
+// Courier codes are forwarded to the provider, which validates them against its
+// own catalogue. We only reject values that could not be a slug at all - a fixed
+// allowlist here meant every new courier added in the app was rejected until this
+// file was edited and redeployed.
+const COURIER_SLUG = /^[a-z0-9][a-z0-9-]{1,31}$/;
 
 const TM_STATUS = {
   pending: "Pending", inforeceived: "Info Received", transit: "In Transit",
@@ -354,7 +354,7 @@ http('track', async (req, res) => {
     });
     return;
   }
-  if (slugRaw && !COURIERS.has(slugRaw)) {
+  if (slugRaw && !COURIER_SLUG.test(slugRaw)) {
     res.status(400).json({ error: "unsupported courier code", code: "invalid_courier" });
     return;
   }
