@@ -322,6 +322,8 @@ const CARRIERS = [
     url:"https://www.delhivery.com/track/package/{tn}" },
   { name:"Blue Dart",               re:/^BD\d{6,}$/i,
     url:"https://www.bluedart.com/tracking" },
+  { name:"Cainiao (AliExpress)",    re:/^(ALS|LP)\d{8,}[A-Z0-9]*$/i,
+    url:"https://global.cainiao.com/detail.htm?mailNoList={tn}" },
   { name:"UPS",                     re:/^(1Z[0-9A-Z]{16}|T\d{10})$/i,
     url:"https://www.ups.com/track?loc=en_US&tracknum={tn}" },
   { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}(IN|[A-Z]{2})$/i,
@@ -350,7 +352,8 @@ const TM_CODES = {
   "Amazon":"amazon", "Shadowfax":"shadowfax", "UPS":"ups",
   "India Post / Speed Post":"india-post", "Delhivery":"delhivery",
   "Ekart":"ekart", "DTDC":"dtdc", "Blue Dart":"bluedart",
-  "XpressBees":"xpressbees", "Valmo (Meesho)":"", "Amazon order ID":""
+  "XpressBees":"xpressbees", "Cainiao (AliExpress)":"cainiao",
+  "Valmo (Meesho)":"", "Amazon order ID":""
 };
 
 function detectCarrier(num){
