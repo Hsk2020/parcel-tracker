@@ -10,7 +10,6 @@
       "**/*.py",
       "**/*.md",
       "**/*.csv",
-      "**/*.txt",
       "**/*.toml",
       "**/*.yml",
       "**/*.yaml",
@@ -20,7 +19,8 @@
       "screenshot.png",
       "config.example.json",
       "package.json",
-      "package-lock.json"
+      "package-lock.json",
+      "requirements.txt"
     ],
     "headers": [
       {
