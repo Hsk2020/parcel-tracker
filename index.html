@@ -559,12 +559,45 @@ function renderList(){
     return `<div class="card" data-num="${esc(p.number)}">
       <div class="left">
         <div class="num">${esc(p.number)}</div>
-        <div class="meta">${p.updatedFlag?'<span class="newdot" title="Updated"></span>':''}${esc(p.courier||"Courier not detected")}${p.lastUpdate?" &middot; "+esc(p.lastUpdate):""}</div>
+        <div class="meta">${p.updatedFlag?'<span class="newdot" title="Updated"></span>':''}${esc(courierLabel(p.courier)||"Courier not detected")}${p.lastUpdate?" &middot; "+esc(fmtWhen(p.lastUpdate)):""}</div>
       </div>
       <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
       <span class="chev">&#8250;</span>
     </div>`;
   }).join("");
+}
+
+/* Providers return slugs like "ups"; show the name a customer recognises. */
+const COURIER_LABELS = {
+  "ups":"UPS", "fedex":"FedEx", "dhl":"DHL", "aramex":"Aramex",
+  "amazon":"Amazon", "delhivery":"Delhivery", "ekart":"Ekart",
+  "xpressbees":"XpressBees", "bluedart":"Blue Dart", "dtdc":"DTDC",
+  "shadowfax":"Shadowfax", "india-post":"India Post",
+  "cainiao":"Cainiao (AliExpress)", "valmo":"Valmo (Meesho)",
+  "ecom-express":"Ecom Express",
+};
+function courierLabel(v){
+  const raw=String(v||"").trim();
+  if(!raw) return "";
+  const slug=raw.toLowerCase().replace(/\s+/g,"-");
+  if(COURIER_LABELS[slug]) return COURIER_LABELS[slug];
+  const hit=CARRIERS.find(c=>c.name.toLowerCase()===raw.toLowerCase());
+  if(hit) return hit.name;
+  return raw.replace(/\b[a-z]/g, m=>m.toUpperCase());
+}
+
+/* Turn "2026-11-01T16:20:23+00:00" into "01 Nov 2026, 9:50 pm". */
+function fmtWhen(v){
+  const raw=String(v||"").trim();
+  if(!raw) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){
+    const d=new Date(raw+"T00:00:00");
+    return isNaN(d) ? raw : d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+  }
+  const d=new Date(raw);
+  if(isNaN(d)) return raw;
+  return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",
+                                  hour:"numeric",minute:"2-digit"});
 }
 
 function showDetail(num){
@@ -579,12 +612,12 @@ function showDetail(num){
       <div class="top">
         <div style="flex:1;min-width:0">
           <div class="num">${esc(p.number)}</div>
-          <div class="cour">${esc(p.courier||"Courier not detected")}</div>
+          <div class="cour">${esc(courierLabel(p.courier)||"Courier not detected")}</div>
         </div>
         <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
       </div>
-      ${p.lastUpdate?`<div class="upd">Updated ${esc(p.lastUpdate)}${p.lastLocation?" &middot; "+esc(p.lastLocation):""}</div>`:""}
-      ${p.eta?`<div class="upd">Expected delivery ${esc(p.eta)}</div>`:""}
+      ${p.lastUpdate?`<div class="upd">Updated ${esc(fmtWhen(p.lastUpdate))}${p.lastLocation?" &middot; "+esc(p.lastLocation):""}</div>`:""}
+      ${p.eta?`<div class="upd">Expected delivery ${esc(fmtWhen(p.eta))}</div>`:""}
       ${p.mobile?`<div class="upd">Mobile for APSRTC lookup: ${esc(p.mobile)}</div>`:""}
       <div class="actions">
         ${p.trackUrl?`<a href="${esc(p.trackUrl)}" target="_blank" rel="noopener">Track on courier site</a>`:""}
@@ -596,7 +629,7 @@ function showDetail(num){
     ${events.length?`<div class="timeline">${events.map(e=>`
       <div class="tl"><div class="dot2"></div><div>
         <div class="act">${esc(e.activity||"-")}</div>
-        <div class="sub">${esc(e.date||"")}${e.location?" &middot; "+esc(e.location):""}</div>
+        <div class="sub">${esc(fmtWhen(e.date))}${e.location?" &middot; "+esc(e.location):""}</div>
       </div></div>`).join("")}</div>`
     :`<div class="timeline"><div class="tl"><div class="dot2"></div><div>
         <div class="act">${esc(p.status||"Added")}</div>
