@@ -9,8 +9,8 @@
  *   Variables & Secrets  : AFTERSHIP_API_KEY      = <key>   (primary)
  *                          TRACKINGMORE_API_KEY   = <key>   (fallback, optional)
  *                          ALLOWED_ORIGINS        = <comma separated> (optional)
- *                          MAX_NEW_PER_MONTH      = 45      (optional)
- *                          MAX_NEW_PER_DAY        = 5       (optional)
+ *                          MAX_NEW_PER_MONTH      = 100     (optional)
+ *                          MAX_NEW_PER_DAY        = 25      (optional)
  *                          RATE_LIMIT_PER_MIN     = 20      (optional)
  *
  * What changed from the first version, and why:
@@ -43,8 +43,8 @@ const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN || 20);
 // The provider allowance is MONTHLY (AfterShip free = 50 shipments), so the
 // monthly cap is the real guard. The daily cap only stops a burst from eating
 // the whole month in one afternoon.
-const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 45);
-const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 5);
+const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 100);
+const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 25);
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
   "https://track.hsk2020.in," +
