@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-04T10:38:26",
+  "generated_at": "2026-11-04T19:31:02",
   "parcels": [
     {
       "tracking_number": "1Z57Y68V0494199622",
@@ -8,7 +8,7 @@
       "status": "In Transit",
       "delivered": "",
       "last_location": "Bengaluru Airport  IN",
-      "last_update": "2026-11-01T16:20:06",
+      "last_update": "2026-11-04T18:19:23",
       "status_detail": "",
       "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
       "provider": "trackingmore",
@@ -71,6 +71,21 @@
         },
         {
           "date": "2026-11-01T16:20:06",
+          "activity": "Warehouse Scan",
+          "location": "Bengaluru Airport  IN"
+        },
+        {
+          "date": "2026-11-04T14:15:24",
+          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
+          "location": "Bengaluru Airport  IN"
+        },
+        {
+          "date": "2026-11-04T16:00:58",
+          "activity": "We'll contact the sender or receiver about this delivery.",
+          "location": "Bengaluru Airport  IN"
+        },
+        {
+          "date": "2026-11-04T18:19:23",
           "activity": "Warehouse Scan",
           "location": "Bengaluru Airport  IN"
         }
