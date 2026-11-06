@@ -160,6 +160,19 @@ function prettyActivity(s) {
   return DETAIL_LABELS[raw.toLowerCase()] || raw;
 }
 
+/* Some carriers (DTDC among them) send "Status,Description 2026-08-31 11:39:10"
+   in one field. Keep the status - it is the part a customer reads. */
+function cleanActivity(s) {
+  let raw = String(s || "").trim();
+  if (!raw) return "";
+  if (raw.includes(",")) {
+    const first = raw.split(",")[0].trim();
+    if (first.length >= 3) raw = first;
+  }
+  raw = raw.replace(/\s+\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?\s*$/, "").trim();
+  return prettyActivity(raw);
+}
+
 function shortRef(tn) {
   // Logging aid: never write a full tracking number to logs.
   const s = String(tn);
@@ -202,7 +215,7 @@ function asNormalise(t, tn, slug) {
        t.aftership_estimated_delivery_date.estimated_delivery_date) || "",
     events: cps.map((c) => ({
       date: c.checkpoint_time || "",
-      activity: prettyActivity(c.message || pretty(c.tag || "")),
+      activity: cleanActivity(c.message || pretty(c.tag || "")),
       location: c.location || c.city || "",
     })),
   };
@@ -261,7 +274,7 @@ function tmNormalise(item, tn, courierCode) {
     for (const e of (info.trackinfo || [])) {
       events.push({
         date: e.checkpoint_date || e.Date || "",
-        activity: prettyActivity(e.tracking_detail || e.details || e.StatusDescription ||
+        activity: cleanActivity(e.tracking_detail || e.details || e.StatusDescription ||
           e.checkpoint_status || e.status_description || ""),
         location: e.location || e.Details || "",
       });
@@ -270,24 +283,34 @@ function tmNormalise(item, tn, courierCode) {
   for (const e of (item.tracking_events || [])) {
     events.push({
       date: e.checkpoint_date || "",
-      activity: prettyActivity(e.tracking_detail || e.details ||
+      activity: cleanActivity(e.tracking_detail || e.details ||
         e.checkpoint_delivery_status || e.status_description || ""),
       location: e.location || "",
     });
   }
-  events.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  // Carriers repeat the same scan across origin_info, destination_info and
+  // tracking_events, so the same checkpoint arrived two or three times.
+  const seen = new Set();
+  const unique = [];
+  for (const ev of events) {
+    const k = (ev.date || "") + "|" + (ev.activity || "") + "|" + (ev.location || "");
+    if (seen.has(k)) continue;
+    seen.add(k);
+    unique.push(ev);
+  }
+  unique.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const raw = String(item.status || item.delivery_status || "");
   return {
     status: TM_STATUS[raw.toLowerCase()] || pretty(raw),
     courier: item.courier_code || courierCode || "",
     delivered: raw.toLowerCase() === "delivered",
-    last_location: (events[events.length - 1] || {}).location || "",
-    last_update: (events[events.length - 1] || {}).date || item.last_update_time || "",
+    last_location: (unique[unique.length - 1] || {}).location || "",
+    last_update: (unique[unique.length - 1] || {}).date || item.last_update_time || "",
     track_url: "https://www.trackingmore.com/track/" + encodeURIComponent(tn),
     eta: item.expected_delivery || item.scheduled_delivery_date ||
          item.expected_delivery_date || "",
-    events,
+    events: unique,
   };
 }
 
