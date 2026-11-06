@@ -290,14 +290,19 @@ function tmNormalise(item, tn, courierCode) {
   }
   // Carriers repeat the same scan across origin_info, destination_info and
   // tracking_events, so the same checkpoint arrived two or three times.
-  const seen = new Set();
-  const unique = [];
+  // De-duplicate on date+activity, but keep any location a repeat copy carried -
+  // carriers often attach the city to only one of the duplicate scans.
+  const byKey = new Map();
   for (const ev of events) {
-    const k = (ev.date || "") + "|" + (ev.activity || "") + "|" + (ev.location || "");
-    if (seen.has(k)) continue;
-    seen.add(k);
-    unique.push(ev);
+    const k = (ev.date || "") + "|" + (ev.activity || "");
+    const prev = byKey.get(k);
+    if (!prev) {
+      byKey.set(k, { date: ev.date || "", activity: ev.activity || "", location: ev.location || "" });
+    } else if (!prev.location && ev.location) {
+      prev.location = ev.location;
+    }
   }
+  const unique = [...byKey.values()];
   unique.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   const raw = String(item.status || item.delivery_status || "");
