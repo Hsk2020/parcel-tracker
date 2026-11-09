@@ -273,6 +273,7 @@
 
 <footer class="foot">
   <div><a href="about.html">About</a> &middot; <a href="privacy.html">Privacy Policy</a> &middot;
+    <a href="guides/index.html">Guides</a> &middot;
     <a href="mailto:hsk2020eseller@gmail.com">Contact</a> &middot;
     <a href="https://wa.me/918978468766?text=Feedback%20on%20the%20parcel%20tracker%0A%0AWhat%20I%20was%20tracking%3A%20%0AWhat%20worked%20well%3A%20%0AWhat%20did%20not%20work%3A%20%0A" target="_blank" rel="noopener">Give feedback</a></div>
   <div><a href="https://hsk2020.in" target="_blank" rel="noopener">hsk2020.in</a> &middot;
@@ -419,87 +420,25 @@ async function loadPublished(){
 }
 
 /* ============================ tracking ============================ */
-/* Human-readable explanation for each failure the live endpoint can report.
-   The server answers 404 not_found / 502 provider_error / 503 quota_guard with a
-   {error, code} body - read it instead of guessing "wait 12-24 hours". */
-function liveFailNote(reason, message, det){
-  const name=(det&&det.name)||"the courier";
-  switch(reason){
-    case "not_found":
-      return "The tracking provider has no scans for this number yet. It has just been registered with them, so the first scans normally appear within a few minutes - tap Track again shortly. If nothing shows up after that, open "+name+"'s own page to confirm the number was scanned at pickup.";
-    case "quota_guard":
-      return "Live lookup is paused for the rest of today - the daily allowance for registering new shipments is used up. Nothing is wrong with your parcel. Open "+name+"'s own page for the live scan history; live tracking here resumes tomorrow.";
-    case "provider_error":
-      return "The tracking provider is not responding right now, so this is a fault at their end and not with your parcel. Try again in a few minutes, or open "+name+"'s own page.";
-    case "rate_limited":
-      return "Too many searches from this connection in the last minute. Wait a minute, then tap Track again.";
-    case "offline":
-      return "Could not reach the live tracking service - check your internet connection and try again, or open "+name+"'s own page.";
-    case "not_configured":
-      return "Live lookup is not configured on the server at the moment. Open "+name+"'s own page for the scan history.";
-    case "invalid_number":
-      return "The live service did not recognise this number's format. Check it against the label, or open "+name+"'s own page.";
-    case "invalid_courier":
-      return "The courier code sent with this number was not recognised. Pick the courier from the dropdown and search again.";
-    case "disabled":
-      return "Live lookup is switched off in this build. Open "+name+"'s own page for the scan history.";
-    default:
-      return "Live lookup returned nothing usable just now"+(reason?" ("+reason+")":"")+". Try again shortly, or open "+name+"'s own page.";
-  }
-}
-/* Short label used when we keep an older status instead of overwriting it. */
-function liveFailShort(reason){
-  return ({
-    not_found:"no scans from the provider yet",
-    quota_guard:"daily lookup allowance used up",
-    provider_error:"tracking provider unavailable",
-    rate_limited:"too many searches just now",
-    offline:"could not reach the tracking service",
-    not_configured:"live lookup not configured",
-    invalid_number:"number format not recognised",
-    invalid_courier:"courier code not recognised",
-    disabled:"live lookup switched off"
-  })[reason] || "unknown error";
-}
-
-/* Returns { parcel, reason, message }. parcel is null when the lookup failed and
-   reason says why, so the caller can show the real cause. */
-async function lookupLiveOnce(num, det){
-  if(!CONFIG.liveApi) return { parcel:null, reason:"disabled", message:"" };
-  const url=new URL(CONFIG.liveApi);
-  url.searchParams.set("tracking_number", num);
-  const code = det && TM_CODES[det.name];
-  if(code) url.searchParams.set("courier_code", code);
-  let r;
+async function lookupLive(num, det){
+  if(!CONFIG.liveApi) return null;
   try{
-    r=await fetch(url.toString(),{cache:"no-store"});
-  }catch(e){
-    return { parcel:null, reason:"offline", message:String(e&&e.message||e) };
-  }
-  let j=null;
-  try{ j=await r.json(); }catch(e){ j=null; }
-  if(!r.ok){
-    return { parcel:null, reason:(j&&j.code)||("http_"+r.status),
-             message:(j&&j.error)||"", status:r.status };
-  }
-  if(j && (j.status||j.courier)) return { parcel:{
+    const url=new URL(CONFIG.liveApi);
+    url.searchParams.set("tracking_number", num);
+    const code = det && TM_CODES[det.name];
+    if(code) url.searchParams.set("courier_code", code);
+    const r=await fetch(url.toString(),{cache:"no-store"});
+    if(r.status===429){ toast("Too many searches - wait a minute and try again"); return null; }
+    if(r.status===503){ toast("Live lookup is paused for today - open the courier's own page"); return null; }
+    if(!r.ok) return null;
+    const j=await r.json();
+    if(j && (j.status||j.courier)) return {
       number:num, courier:j.courier||"", status:j.status||"", delivered:j.delivered?"YES":"",
       lastLocation:j.last_location||"", lastUpdate:j.last_update||"",
-      eta:j.eta||"", trackUrl:j.track_url||"", events:j.events||[], source:"live",
-      registered:!!j.registered
-    }, reason:null, message:"" };
-  return { parcel:null, reason:"empty", message:"" };
-}
-
-/* A first-time lookup registers the number with the provider, which often
-   returns not_found before any scan exists. Retry once when interactive. */
-async function lookupLive(num, det, retry){
-  const res = await lookupLiveOnce(num, det);
-  if(retry && !res.parcel && res.reason === "not_found"){
-    await new Promise(r=>setTimeout(r, 4000));
-    return await lookupLiveOnce(num, det);
-  }
-  return res;
+      eta:j.eta||"", trackUrl:j.track_url||"", events:j.events||[], source:"live"
+    };
+  }catch(e){}
+  return null;
 }
 
 async function trackNumber(numRaw, courierOverride){
@@ -529,8 +468,7 @@ async function trackNumber(numRaw, courierOverride){
       trackUrl:pub.track_url||courierUrl((det&&det.name)||pub.courier,num), events:pub.events||[], source:"published" };
   } else {
     // 2) live API (if configured)
-    const liveRes = await lookupLive(num, det, true);
-    const live = liveRes.parcel;
+    const live = await lookupLive(num, det);
     if(live){
       parcel=live;
       if(!parcel.courier && det) parcel.courier=det.name;
@@ -554,28 +492,14 @@ async function trackNumber(numRaw, courierOverride){
               : det.name+" does not publish tracking to third parties. Tap 'Track on courier site' and check the booking in their app.")
           : isStoreOrder
           ? "This looks like a store order ID, not a courier tracking number. Open the seller's website or app and use their Track Order page (usually the order ID plus your registered email or phone). When the parcel ships, the shipping email carries the courier AWB - enter that here for live tracking."
-          : liveFailNote(liveRes.reason, liveRes.message, det) };
-
-      // A failed lookup must never wipe a status we already have.
-      const prev = saved.find(p=>p.number===num);
-      if(prev && ((prev.events||[]).length || (prev.status && prev.status!=="Not tracked yet"))){
-        parcel = { ...prev,
-          note: "Live refresh failed just now (" + liveFailShort(liveRes.reason) +
-                "). Showing the last status we have - tap Track again later." };
-      }
-      parcel.failReason = liveRes.reason || "";
+          : "No scans found yet. Most parcels only appear 12-24 hours after dispatch, once the carrier scans them at its hub. Try again later, or open the courier's own page. If the courier name looks wrong, pick the right one from the dropdown and search again." };
     }
   }
   parcel.addedAt=Date.now();
   const i=saved.findIndex(p=>p.number===num);
   if(i>=0) saved[i]=parcel; else saved.unshift(parcel);
   persist(); renderList(); showDetail(num);
-  if(parcel.source==="manual"){
-    if(parcel.failReason==="not_found") toast("No scans yet - registered with the provider, try again in a few minutes");
-    else if(parcel.failReason==="quota_guard") toast("Live lookup paused for today - open the courier's page");
-    else if(parcel.failReason==="provider_error") toast("Tracking provider is down - open the courier's page");
-    else toast("Added - tap Track on courier site for live status");
-  }
+  if(parcel.source==="manual") toast("Added - tap Track on courier site for live status");
 }
 
 /* ============================ render ============================ */
@@ -594,9 +518,8 @@ async function refreshSaved(){
   let changed = 0;
   for(const p of stale){
     const det = p.courier ? { name: p.courier } : detectCarrier(p.number);
-    let liveRes = null;
-    try { liveRes = await lookupLive(p.number, det); } catch(e) {}
-    const live = liveRes && liveRes.parcel;
+    let live = null;
+    try { live = await lookupLive(p.number, det); } catch(e) {}
     p.checkedAt = Date.now();
     if(live){
       if(p.status && live.status && p.status !== live.status){ p.updatedFlag = true; changed++; }
