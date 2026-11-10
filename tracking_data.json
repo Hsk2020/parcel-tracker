@@ -1,135 +1,19 @@
 {
-  "generated_at": "2026-11-10T06:34:17",
+  "generated_at": "2026-11-10T16:52:48",
   "parcels": [
     {
       "tracking_number": "1Z57Y68V0494199622",
       "courier_code": "ups",
-      "courier": "ups",
-      "status": "In Transit",
+      "courier": "",
+      "status": "",
       "delivered": "",
-      "last_location": "Bengaluru Airport  IN",
-      "last_update": "2026-11-10T05:57:54",
+      "last_location": "",
+      "last_update": "",
       "status_detail": "",
-      "track_url": "https://www.trackingmore.com/track/1Z57Y68V0494199622",
+      "track_url": "",
       "provider": "trackingmore",
-      "error": "",
-      "events": [
-        {
-          "date": "2026-10-26T14:38:10",
-          "activity": "Shipper created a label, UPS has not received the package yet.",
-          "location": "HK"
-        },
-        {
-          "date": "2026-10-28T03:18:31",
-          "activity": "Arrived at Facility",
-          "location": "Chek Lap Kok  HK"
-        },
-        {
-          "date": "2026-10-28T03:18:32",
-          "activity": "Export Scan",
-          "location": "Chek Lap Kok  HK"
-        },
-        {
-          "date": "2026-10-28T23:47:00",
-          "activity": "Departed from Facility",
-          "location": "Chek Lap Kok  HK"
-        },
-        {
-          "date": "2026-10-29T01:31:00",
-          "activity": "Arrived at Facility",
-          "location": "Pampanga  PH"
-        },
-        {
-          "date": "2026-10-29T05:39:00",
-          "activity": "Departed from Facility",
-          "location": "Pampanga  PH"
-        },
-        {
-          "date": "2026-10-29T09:32:00",
-          "activity": "Arrived at Facility",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-10-29T14:42:54",
-          "activity": "Import Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-10-30T17:21:25",
-          "activity": "Importer's consumer or business Identification number is required for clearance. Awaiting information from the customer.",
-          "location": ""
-        },
-        {
-          "date": "2026-10-30T19:32:54",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-10-31T17:18:30",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-01T16:20:06",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-04T14:15:24",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-04T16:00:58",
-          "activity": "We'll contact the sender or receiver about this delivery.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-04T18:19:23",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-05T16:02:53",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-06T14:51:55",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-07T13:41:45",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-07T18:27:55",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-08T16:29:24",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-09T13:30:51",
-          "activity": "Customs requires additional information or documents for clearance. Awaiting information from the customer.",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-09T18:49:43",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        },
-        {
-          "date": "2026-11-10T05:57:54",
-          "activity": "Warehouse Scan",
-          "location": "Bengaluru Airport  IN"
-        }
-      ]
+      "error": "No tracking data returned",
+      "events": []
     }
   ]
 }
