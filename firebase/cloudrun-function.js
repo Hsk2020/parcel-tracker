@@ -79,10 +79,16 @@ const DETAIL_LABELS = {
   "out for pickup": "Out for pickup",
   "pickdone": "Picked up",
   "intransit": "In transit",
+  "in transit": "In transit",
   "reached at destination": "Reached destination hub",
+  "arrived at destination": "Arrived at destination",
   "out for delivery": "Out for delivery",
   "delivered": "Delivered",
   "undelivered": "Delivery attempted",
+  "canceled": "Cancelled",
+  "cancelled": "Cancelled",
+  "booked": "Booked",
+  "on the way": "On the way",
 };
 
 /* ----------------------------- state ----------------------------- */
@@ -156,8 +162,15 @@ function pretty(s) {
 }
 
 function prettyActivity(s) {
-  const raw = String(s || "").trim();
-  return DETAIL_LABELS[raw.toLowerCase()] || raw;
+  let raw = String(s || "").trim();
+  if (!raw) return "";
+  // carriers hyphenate and shout: "IN-TRANSIT", "ARRIVED AT DESTINATION"
+  const key = raw.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (DETAIL_LABELS[key]) return DETAIL_LABELS[key];
+  if (raw === raw.toUpperCase() && /[A-Z]{3,}/.test(raw)) {
+    raw = raw.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  }
+  return raw;
 }
 
 /* Some carriers (DTDC among them) send "Status,Description 2026-08-31 11:39:10"
