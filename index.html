@@ -353,6 +353,8 @@ const CARRIERS = [
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
 
   // --- Services with no third-party tracking API: selectable, hand-off only ---
+  { name:"Gati (Allcargo)",         re:/$^/,
+    url:"https://www.gati.com/track-by-docket/" },
   { name:"VRL Logistics",           re:/$^/,
     url:"https://www.vrlgroup.in/Tracking/TrackShipment" },
   { name:"APSRTC Cargo",            re:/$^/,
@@ -378,7 +380,7 @@ const TM_CODES = {
   "India Post / Speed Post":"india-post", "Delhivery":"delhivery",
   "Ekart":"ekart", "DTDC":"dtdc", "Blue Dart":"bluedart",
   "XpressBees":"xpressbees", "Cainiao (AliExpress)":"cainiao",
-  "VRL Logistics":"vrl",
+  "VRL Logistics":"vrl", "Gati (Allcargo)":"gati-kwe",
   "Valmo (Meesho)":"", "Amazon order ID":""
 };
 
@@ -480,7 +482,7 @@ async function trackNumber(numRaw, courierOverride){
       const isTBA=/^TBA\d{10,}$/i.test(num);
       const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
       const isStoreOrder=/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(num);
-      const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics"].includes((det&&det.name)||"");
+      const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics","Gati (Allcargo)"].includes((det&&det.name)||"");
       parcel={ number:num, courier:(det&&det.name)||"", status:"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
         trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
@@ -490,7 +492,9 @@ async function trackNumber(numRaw, courierOverride){
           : isAmzOrder
           ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
           : handoffOnly
-          ? (det.name==="VRL Logistics"
+          ? (det.name==="Gati (Allcargo)"
+              ? "No live scans came back for this docket. Tap 'Track on courier site' and enter the docket number from the consignment note - Gati shows old consignments on gatikwe.com rather than gati.com."
+              : det.name==="VRL Logistics"
               ? "No live scans came back for this LR number. VRL coverage through tracking providers is partial, so tap 'Track on courier site' and check the LR number (Lorry Receipt) on VRL's own page - it accepts the LR number, not the Courier No."
               : det.name==="APSRTC Cargo"
               ? "APSRTC Cargo does not publish tracking to third parties. Tap 'Track on courier site' - their page needs the AWB plus the sender's or receiver's mobile number."
