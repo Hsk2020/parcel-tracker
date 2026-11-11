@@ -378,6 +378,7 @@ const TM_CODES = {
   "India Post / Speed Post":"india-post", "Delhivery":"delhivery",
   "Ekart":"ekart", "DTDC":"dtdc", "Blue Dart":"bluedart",
   "XpressBees":"xpressbees", "Cainiao (AliExpress)":"cainiao",
+  "VRL Logistics":"vrl",
   "Valmo (Meesho)":"", "Amazon order ID":""
 };
 
@@ -490,7 +491,7 @@ async function trackNumber(numRaw, courierOverride){
           ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
           : handoffOnly
           ? (det.name==="VRL Logistics"
-              ? "VRL Logistics does not publish tracking to third parties. Tap 'Track on courier site' and enter the LR number (Lorry Receipt) from the booking - the public page accepts the LR number only, not the Courier No."
+              ? "No live scans came back for this LR number. VRL coverage through tracking providers is partial, so tap 'Track on courier site' and check the LR number (Lorry Receipt) on VRL's own page - it accepts the LR number, not the Courier No."
               : det.name==="APSRTC Cargo"
               ? "APSRTC Cargo does not publish tracking to third parties. Tap 'Track on courier site' - their page needs the AWB plus the sender's or receiver's mobile number."
               : det.name+" does not publish tracking to third parties. Tap 'Track on courier site' and check the booking in their app.")
