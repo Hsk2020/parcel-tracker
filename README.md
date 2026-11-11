@@ -1,175 +1,209 @@
-# HSK Parcel Tracker — app for Hrudai Store Kart
+# HSK Parcel Tracker
 
-![HSK Parcel Tracker](screenshot.png)
+Parcel tracking app for **Hrudai Store Kart** — enter any tracking number, the
+courier is detected automatically, and the live scan timeline is shown.
 
-An AfterShip-style parcel tracking app for **Hrudai Store Kart**. Add any
-tracking number, it detects the courier, saves your parcels and shows a status
-timeline. Installable on a phone (PWA), and it promotes our two stores.
+Built and operated for the stores:
 
 - **Fashion & Accessories** → [hsk2020.in](https://hsk2020.in)
 - **Organic Products** → [hsk.co.in](https://hsk.co.in)
 
-Everything is static — `index.html` plus a data file (`tracking_data.json`) —
-so it hosts free on **GitHub Pages**. No server, no build step.
-
-## What it does
-
-- **Add any tracking number** — saved on the device and listed under "My parcels".
-- **Courier auto-detection** — recognises Amazon, India Post/Speed Post, Delhivery, Ekart, DTDC, Blue Dart and XpressBees from the number format (a best guess you can override from the dropdown).
-- **Status + timeline** — for numbers published in `tracking_data.json` it shows the real status and the full scan history.
-- **Courier hand-off** — for anything else it links straight to the courier's tracking page.
-- **Installable** — add it to the home screen; it opens full-screen like a native app and works offline.
-- **Store promos + Google AdSense** — in the Shop tab and an ad slot.
-
-## Install it as an app
-
-Open the site on a phone and tap **Install** (or the browser menu → *Add to Home
-screen*). It then opens full-screen with its own icon and works offline.
-
-## Live status for any number (optional)
-
-Out of the box the app auto-detects the courier and hands off to the courier's
-site. To show **live status inside the app for any number**, deploy the small
-free backend in `worker/` (a Cloudflare Worker holding an aggregator API key)
-and paste its URL into `CONFIG.liveApi` in `index.html`. See
-[`worker/README.md`](worker/README.md).
-
 ---
 
-## Publish it on GitHub Pages (5 minutes, no coding)
+## Live addresses
 
-### Step 1 — create the repository
-
-1. Sign in to [github.com](https://github.com) and click **New repository**.
-2. Name it something like `parcel-tracker`.
-3. Set it to **Public** (GitHub Pages is free on public repos).
-4. Click **Create repository**.
-
-### Step 2 — upload the files
-
-Easiest way (no tools to install):
-
-1. On the empty repo page, click **uploading an existing file**.
-2. Drag in **everything inside this folder** — `index.html`,
-   `tracking_data.json`, `.nojekyll`, and the rest.
-   *(The `.nojekyll` file may be hidden on your computer; if you can't see it,
-   that's fine — the site still works. It only stops GitHub from running an
-   extra processing step.)*
-3. Click **Commit changes**.
-
-### Step 3 — turn on Pages
-
-1. In the repo, go to **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-3. Branch: **main**, folder: **/ (root)**. Click **Save**.
-4. Wait about a minute. Your page goes live at:
-
-   ```
-   https://YOUR-USERNAME.github.io/parcel-tracker/
-   ```
-
-   (Replace `YOUR-USERNAME` with your GitHub username.)
-
-> Want the shortest possible URL? Name the repository
-> `YOUR-USERNAME.github.io` instead — then the site serves at
-> `https://YOUR-USERNAME.github.io/`.
-
-### Step 2 (alternative) — using git on your computer
-
-If you prefer the command line:
-
-```bash
-git init
-git add .
-git commit -m "Hrudai Store Kart tracking page"
-git branch -M main
-git remote add origin https://github.com/YOUR-USERNAME/parcel-tracker.git
-git push -u origin main
-```
-
-Then do Step 3 above.
-
----
-
-## Updating the parcel data
-
-The page reads `tracking_data.json` from the same folder. To refresh it:
-
-1. Run the tracker tool on your own computer (see `TOOL_README.md`):
-
-   ```bash
-   python track_parcels.py -i parcels.csv -o tracking_data.json -p shiprocket
-   ```
-
-2. Upload the new `tracking_data.json` to the repo (drag it onto the repo page
-   and commit, or `git add tracking_data.json && git commit -m "update" && git push`).
-
-The page updates as soon as GitHub republishes (usually under a minute).
-
-If `tracking_data.json` is missing, the page automatically shows sample
-shipments, so it never looks broken.
-
----
-
-## Turning on Google Ads
-
-Open `index.html`, scroll to the `CONFIG` object near the bottom, and set:
-
-```js
-adSenseClient: "ca-pub-XXXXXXXXXXXXXXXX",          // your AdSense publisher ID
-adSlots: { top: "1234567890", bottom: "0987654321" } // your ad unit slot IDs
-```
-
-Create the ad units in AdSense under **Ads → By ad unit → Display ads**, then
-copy each `data-ad-slot` number. Until you paste a real publisher ID, each ad
-position shows a tidy placeholder box instead of a live ad.
-
----
-
-## Important: your parcel data is public
-
-On a **public** repo, anyone who knows the URL can read `tracking_data.json` —
-which contains tracking numbers and delivery statuses. That is usually fine
-(tracking numbers are semi-public), but if you'd rather keep it private, you
-have options:
-
-- Keep the file out of the repo (add it to `.gitignore`) and host the data
-  somewhere private, or
-- Use a **private** repository with GitHub Pages (available on paid GitHub
-  plans), or
-- Only put test/sample data in the public file.
-
-This is your call — just be aware of it before you publish real customer data.
-
----
-
-## Files in this repo
-
-| File | What it is |
+| Address | Serves |
 |---|---|
-| `index.html` | The app (this is what GitHub Pages serves) |
-| `manifest.webmanifest`, `sw.js`, `icon-192.png`, `icon-512.png` | Make it installable + offline (PWA) |
-| `tracking_data.json` | Published parcel data the app displays |
-| `worker/` | Optional free backend for live status on any number |
-| `tracking-page.html` | The earlier, simpler tracking page (kept for reference) |
-| `.nojekyll` | Tells GitHub Pages to serve files as-is |
-| `track_parcels.py`, `adapters.py` | The tracker tool that builds `tracking_data.json` |
-| `edit_shipments.py`, `shipments_to_edit.csv` | Bulk-edit Delhivery shipment details (Edit Order API) |
-| `config.example.json` | Copy to `config.json` and add API credentials (never commit it) |
-| `parcels_sample.csv` | Example input for the tracker |
-| `TOOL_README.md` | Full documentation for the tracker tool |
+| **https://hskparcel.in** | Primary tracker (canonical) |
+| https://track.hsk2020.in | Same app, kept so older links keep working |
+| https://hsk-tracker-1a2b3-f20a4.web.app | Firebase default hostname |
+| https://hskparcel.in/guides/ | Seven tracking guides (content pages) |
+
+`hsk2020.in` itself forwards to the MyDukaan store — do not point it at Firebase.
 
 ---
 
-## Custom domain (optional)
+## Architecture
 
-If you want the page at, say, `track.hsk.co.in`, add a `CNAME` file containing
-that domain, point a DNS record at GitHub Pages, and set it under
-**Settings → Pages → Custom domain**. GitHub's docs cover the exact DNS steps.
+```
+Browser (PWA)
+   │
+   ├── Firebase Hosting ── index.html, guides, manifest, service worker
+   │
+   └── fetch() ──► Cloud Run function ──► AfterShip (primary)
+                     track-hsk-co-in.cloud.run        │
+                                                      └► TrackingMore (fallback)
+```
+
+- **Front end** — one static `index.html` (HTML + CSS + JS inline), a PWA
+  manifest and a self-updating service worker. No build step.
+- **Back end** — a single Cloud Run function (`firebase/cloudrun-function.js`,
+  ESM, entry point `track`). It holds the provider keys, so no credential is
+  ever exposed to the browser.
+- **Providers** — AfterShip first, TrackingMore when AfterShip has no data.
+  Both are read-through caches: a lookup that finds a shipment never registers
+  it again.
+
+### Deploying
+
+| Part | How it deploys |
+|---|---|
+| Static site | Automatic — any push to `main` runs `.github/workflows/firebase-hosting.yml` |
+| Cloud Run function | **Manual** — paste `firebase/cloudrun-function.js` into the Cloud Run Source tab and Deploy |
+
+The function is the one piece that cannot be deployed from this repository.
 
 ---
 
-## Credits
+## Function configuration
 
-Built for Hrudai Store Kart. Tracking data is provided by the courier APIs via
-the tracker tool; this page just displays it.
+Set as Cloud Run environment variables — never in the repo:
+
+| Variable | Purpose |
+|---|---|
+| `AFTERSHIP_API_KEY` | Primary provider |
+| `TRACKINGMORE_API_KEY` | Fallback provider |
+| `ALLOWED_ORIGINS` | CORS allowlist (comma separated) |
+| `MAX_NEW_PER_MONTH` | Default 100 — caps new registrations per month |
+| `MAX_NEW_PER_DAY` | Default 25 — caps new registrations per day |
+| `RATE_LIMIT_PER_MIN` | Default 20 — per-IP request limit |
+
+Guard rails already in the function: input validation, courier-code slug check,
+per-IP rate limit, 10-minute result cache, daily and monthly registration
+budgets, get-before-create on both providers, structured error codes, and an
+origin allowlist.
+
+**Known limitation:** the counters live in instance memory, so they reset on
+cold start and are not shared across instances. They stop casual abuse, not a
+determined attacker.
+
+---
+
+## Couriers
+
+Selectable in the app (18). Detection is automatic for the ones with a
+distinctive number format; the rest are chosen from the dropdown.
+
+**Live timeline:**
+
+| Courier | Number format |
+|---|---|
+| Delhivery | 12–14 digits |
+| Ekart | `FMPP`, `FMP`, `FMPC`, `DSPC`, `SHCP` + digits |
+| DTDC | `D`/`V`/`X`/`Z` + 7–11 digits |
+| XpressBees | 13–15 digits |
+| Shadowfax | `SF` + digits |
+| Blue Dart | 11 digits |
+| India Post / Speed Post | two letters + 9 digits + `IN` |
+| UPS | `1Z` + 16 alphanumerics |
+| Cainiao / AliExpress | `ALS` or `LP` + digits |
+| Amazon Logistics | `TBA`/`TBC`/`TBM` + 12 digits |
+| Amazon order ID | `404-1234567-1234567` (explained, not tracked) |
+| **VRL Logistics** | LR number, ~10 digits — confirmed working |
+| **Gati (Allcargo)** | docket, 9–10 digits — wired, awaiting a real test |
+
+**Hand-off only** — these do not publish tracking to third parties, so the app
+opens their own page instead of pretending to have a timeline:
+
+- **APSRTC Cargo** — also requires the sender's or receiver's mobile number
+- **Porter**
+- **Rapido**
+
+---
+
+## App features
+
+- **Courier auto-detection** with manual override from the dropdown
+- **Saved parcels** in `localStorage` (per browser, never uploaded)
+- **Delivery ETA** when the provider publishes one
+- **In-app change alerts** — saved parcels re-check on open; anything that moved
+  gets a dot and a toast. Capped at 8 parcels per visit, once per 15 minutes.
+- **Deep links** — `?tracking_number=AWB&courier=code` opens straight onto a
+  parcel. Also accepts `tn`, `awb`, `number`.
+- **Shareable parcel links** and an address bar that follows the open parcel
+- **APSRTC mobile field** — appears only when that courier is selected,
+  validated, stored locally, never transmitted
+- **Feedback link** — opens WhatsApp with the message prefilled
+- **Installable PWA** with a self-updating service worker (no hard refresh)
+
+---
+
+## Content and SEO
+
+- `guides/` — seven articles on Indian parcel tracking, written to answer real
+  searches (courier formats, status meanings, APSRTC, Cainiao, VRL, Gati)
+- `sitemap.xml` and `robots.txt` — sitemap submitted to Search Console
+- Canonical tags point every page at `hskparcel.in`
+- Open Graph and Twitter cards with a 1200×630 share image (`og-image.png`)
+- JSON-LD `WebApplication` structured data
+
+---
+
+## Advertising (Google AdSense)
+
+Publisher ID `ca-pub-2396239883686272`.
+
+| Item | State |
+|---|---|
+| Ad code on all pages | Yes, in `<head>` |
+| `ads.txt` | Served at the domain root, byte-exact |
+| Sites in AdSense | `hskparcel.in` and the `.web.app` host |
+| Approval | **Pending review** |
+| Known risk | AdSense previously rejected the site for "screens without publisher content" — the guides section was added to address that |
+
+Ad units sit on the guide pages only. The tracker screen is deliberately
+ad-light.
+
+---
+
+## Repository layout
+
+```
+index.html                 the whole app
+about.html, privacy.html   supporting pages
+guides/                    seven content pages + index
+manifest.webmanifest       PWA manifest
+sw.js                      service worker (cache version bumped on each release)
+firebase/
+  cloudrun-function.js     the live function — paste this into Cloud Run
+  inline-function.js       byte-identical mirror
+firebase.json, .firebaserc hosting config (public: ".", no public/ folder)
+ads.txt, robots.txt, sitemap.xml
+og-image.png, icon-*.png, logo-full.png, qr-*.png
+adapters.py, track_parcels.py, …   Python toolkit (separate from the web app)
+```
+
+---
+
+## Python toolkit
+
+`track_parcels.py` and `adapters.py` are a command-line toolkit for bulk
+tracking, separate from the web app. Adapters included: direct Delhivery,
+Shiprocket, Ship24, TrackingMore, and manual hand-off. Credentials come from a
+git-ignored `config.json` or environment variables.
+
+---
+
+## Deliberate limitations
+
+Stated plainly, because the app says the same to users:
+
+- **Amazon order IDs cannot be tracked** by any third party. Only Amazon's own
+  account pages resolve them.
+- **Porter, Rapido and APSRTC Cargo** publish no tracking data. Hand-off only.
+- **Aggregator data lags** the courier's own site by minutes to hours.
+- **Free-tier ceiling** — roughly 100 new parcels per month. Direct carrier
+  APIs are the way past it.
+- **Firebase billing** — the project runs on a Google Cloud trial that expires
+  **26 January 2027**. Without a payment method, tracking lookups stop.
+
+---
+
+## Pending work
+
+1. Test Gati with a real docket number; switch the slug to `gati` if
+   `gati-kwe` returns nothing.
+2. Redeploy the function to pick up the location-merge fix (`ad0aa08`).
+3. AdSense review outcome.
+4. When parcel volume justifies it: direct carrier APIs (Delhivery first) to
+   reduce dependence on the aggregators.
