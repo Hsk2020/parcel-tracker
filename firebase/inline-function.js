@@ -8,6 +8,8 @@
  *   Runtime              : Node.js 22
  *   Variables & Secrets  : SHADOWFAX_TOKEN        = <token> (used FIRST for SF... AWBs)
  *                          SHADOWFAX_API_BASE     = <url>   (optional, production default)
+ *                          DTDC_API_KEY           = <key>   (used FIRST for DTDC AWBs)
+ *                          DTDC_API_BASE          = <url>   (optional, default appapi.dtdc.in)
  *                          AFTERSHIP_API_KEY      = <key>   (primary for other couriers)
  *                          TRACKINGMORE_API_KEY   = <key>   (fallback, optional)
  *                          ALLOWED_ORIGINS        = <comma separated> (optional)
@@ -41,8 +43,10 @@ const TM_BASE = "https://api.trackingmore.com/v4";
 /* Shadowfax direct API. Production host is dale.shadowfax.in; staging is
    dale.staging.shadowfax.in. The token is a Cloud Run variable, never in the repo. */
 const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
+/* DTDC direct API. Key goes in the "api-key" header, supplied as a Cloud Run variable. */
+const DTDC_BASE = process.env.DTDC_API_BASE || "https://appapi.dtdc.in";
 /* Bump this whenever the function changes, so /?diag=1 shows what is actually deployed. */
-const BUILD = "2026-11-17-shadowfax-3";
+const BUILD = "2026-11-17-dtdc-1";
 const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -407,6 +411,112 @@ async function shadowfaxLookup(tn, token) {
   return { value: sfNormalise(j, tn), error: null };
 }
 
+/* --------------------------------------------------------------------- DTDC
+   GET /api/customer/integration/consignment/track?reference_number=<AWB>
+   Header: api-key: <token>
+   The exact response shape is not fixed across DTDC services, so the event
+   extractor walks the payload and accepts any array of objects that carries a
+   date and a description. If nothing matches, the status is still returned. */
+const DTDC_STATUS = {
+  "delivered": "Delivered",
+  "out_for_delivery": "Out for delivery",
+  "out for delivery": "Out for delivery",
+  "in_transit": "In transit",
+  "in transit": "In transit",
+  "picked": "Picked up",
+  "picked_up": "Picked up",
+  "pickup_scheduled": "Pickup scheduled",
+  "pickup scheduled": "Pickup scheduled",
+  "booked": "Booked",
+  "undelivered": "Delivery attempted",
+  "rto": "Returning to sender",
+  "cancelled": "Cancelled",
+  "canceled": "Cancelled",
+};
+
+function dtdcEvents(j) {
+  const found = [];
+  const DATE_KEYS = ["date", "event_date", "scan_date", "status_date", "date_time",
+    "datetime", "timestamp", "event_time", "created", "created_at", "activity_date"];
+  const ACT_KEYS = ["activity", "status", "event", "description", "remarks",
+    "scan_type", "status_description", "event_description", "message", "detail"];
+  const LOC_KEYS = ["location", "centre", "center", "branch", "city", "facility",
+    "scan_location", "office", "hub"];
+
+  const pick = (o, keys) => {
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+  };
+
+  const walk = (v, depth) => {
+    if (!v || depth > 5) return;
+    if (Array.isArray(v)) {
+      for (const it of v) {
+        if (it && typeof it === "object" && !Array.isArray(it)) {
+          const d = pick(it, DATE_KEYS), a = pick(it, ACT_KEYS);
+          if (d && a) {
+            found.push({ date: d, activity: cleanActivity(a), location: pick(it, LOC_KEYS) });
+          }
+        }
+        walk(it, depth + 1);
+      }
+    } else if (typeof v === "object") {
+      for (const k of Object.keys(v)) walk(v[k], depth + 1);
+    }
+  };
+  walk(j, 0);
+
+  const byKey = new Map();
+  for (const e of found) {
+    const k = e.date + "|" + e.activity;
+    const prev = byKey.get(k);
+    if (!prev) byKey.set(k, e);
+    else if (!prev.location && e.location) prev.location = e.location;
+  }
+  const out = [...byKey.values()];
+  out.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return out;
+}
+
+function dtdcNormalise(j, tn) {
+  const d = (j && (j.data || j)) || {};
+  const raw = String(d.status || d.consignment_status || d.current_status ||
+    d.shipment_status || "").trim();
+  const key = raw.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  const events = dtdcEvents(j);
+  const last = events[events.length - 1] || {};
+  return {
+    status: DTDC_STATUS[key] || pretty(raw || "Pending"),
+    courier: "dtdc",
+    delivered: key === "delivered",
+    last_location: last.location || String(d.destination || d.destination_city || ""),
+    last_update: last.date || "",
+    track_url: "https://www.dtdc.in/tracking/tracking_results.asp",
+    eta: String(d.expected_delivery_date || d.assured_delivery_date || d.edd || ""),
+    events,
+  };
+}
+
+async function dtdcLookup(tn, token) {
+  const url = DTDC_BASE + "/api/customer/integration/consignment/track?reference_number=" +
+    encodeURIComponent(tn);
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { "api-key": token, Accept: "application/json" },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (res.status === 401 || res.status === 403) return { value: null, error: "auth" };
+  if (res.status === 404) return { value: null, error: null };
+  if (!res.ok) return { value: null, error: "provider_error" };
+  let j;
+  try { j = await res.json(); } catch (_) { return { value: null, error: "provider_error" }; }
+  if (!j) return { value: null, error: null };
+  return { value: dtdcNormalise(j, tn), error: null };
+}
+
 async function trackingMoreLookup(tn, courierCode, key, mayRegister) {
   const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
 
@@ -467,6 +577,7 @@ http('track', async (req, res) => {
         shadowfax: Boolean(process.env.SHADOWFAX_TOKEN),
         aftership: Boolean(process.env.AFTERSHIP_API_KEY),
         trackingmore: Boolean(process.env.TRACKINGMORE_API_KEY),
+        dtdc: Boolean(process.env.DTDC_API_KEY),
       },
       shadowfax_base: SF_BASE,
       shadowfax_first: true,
@@ -515,7 +626,8 @@ http('track', async (req, res) => {
   const asKey = process.env.AFTERSHIP_API_KEY;
   const tmKey = process.env.TRACKINGMORE_API_KEY;
   const sfKey = process.env.SHADOWFAX_TOKEN;
-  if (!asKey && !tmKey && !sfKey) {
+  const dtdcKey = process.env.DTDC_API_KEY;
+  if (!asKey && !tmKey && !sfKey && !dtdcKey) {
     res.status(500).json({
       error: "server not configured (set SHADOWFAX_TOKEN, AFTERSHIP_API_KEY and/or TRACKINGMORE_API_KEY)",
       code: "not_configured",
@@ -538,6 +650,17 @@ http('track', async (req, res) => {
     try {
       const r = await shadowfaxLookup(tn, sfToken);
       if (r.value) { out = r.value; source = "shadowfax"; }
+      if (r.error === "provider_error" || r.error === "auth") sawProviderError = true;
+    } catch (_) { sawProviderError = true; }
+  }
+
+  /* DTDC direct, same idea as Shadowfax. */
+  const dtdcToken = process.env.DTDC_API_KEY;
+  const looksLikeDtdc = /^[DVXZ]\d{7,11}$/i.test(tn) || slugRaw === "dtdc";
+  if (dtdcToken && looksLikeDtdc && !(out && (out.events || []).length)) {
+    try {
+      const r = await dtdcLookup(tn, dtdcToken);
+      if (r.value) { out = r.value; source = "dtdc"; }
       if (r.error === "provider_error" || r.error === "auth") sawProviderError = true;
     } catch (_) { sawProviderError = true; }
   }

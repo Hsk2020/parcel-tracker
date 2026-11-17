@@ -65,6 +65,8 @@ Set as Cloud Run environment variables — never in the repo:
 | `TRACKINGMORE_API_KEY` | Fallback provider |
 | `SHADOWFAX_TOKEN` | Shadowfax direct API — used first for `SF…` AWBs |
 | `SHADOWFAX_API_BASE` | Optional; defaults to `https://dale.shadowfax.in/api` |
+| `DTDC_API_KEY` | DTDC direct API — used first for DTDC AWBs |
+| `DTDC_API_BASE` | Optional; defaults to `https://appapi.dtdc.in` |
 | `ALLOWED_ORIGINS` | CORS allowlist (comma separated) |
 | `MAX_NEW_PER_MONTH` | Default 100 — caps new registrations per month |
 | `MAX_NEW_PER_DAY` | Default 25 — caps new registrations per day |
