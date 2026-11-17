@@ -344,6 +344,9 @@ function tmNormalise(item, tn, courierCode) {
    caller can fall through to the aggregators. Never registers anything, so it
    spends no aggregator quota. */
 const SF_STATUS = {
+  "new": "Shipment info received",
+  "created": "Shipment info received",
+  "pending": "Shipment info received",
   "delivered": "Delivered",
   "out_for_delivery": "Out for delivery",
   "picked": "Picked up",
@@ -378,7 +381,7 @@ function sfNormalise(j, tn) {
     delivered: sid === "delivered",
     last_location: last.location || "",
     last_update: last.date || "",
-    track_url: "https://www.shadowfax.in/track/" + encodeURIComponent(tn),
+    track_url: "https://track.shadowfax.in/track?order=new&trackingId=" + encodeURIComponent(tn),
     eta: od.promised_delivery_date || "",
     events,
   };
