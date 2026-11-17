@@ -40,7 +40,7 @@ const TM_BASE = "https://api.trackingmore.com/v4";
    dale.staging.shadowfax.in. The token is a Cloud Run variable, never in the repo. */
 const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
 /* Bump this whenever the function changes, so /?diag=1 shows what is actually deployed. */
-const BUILD = "2026-11-17-shadowfax-2";
+const BUILD = "2026-11-17-shadowfax-3";
 const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -52,6 +52,8 @@ const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 100);
 const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 25);
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
+  "https://hskparcel.in," +
+  "https://www.hskparcel.in," +
   "https://track.hsk2020.in," +
   "https://track.hsk.co.in," +
   "https://hsk-tracker-1a2b3-f20a4.web.app," +
