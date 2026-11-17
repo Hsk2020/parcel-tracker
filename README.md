@@ -63,6 +63,8 @@ Set as Cloud Run environment variables — never in the repo:
 |---|---|
 | `AFTERSHIP_API_KEY` | Primary provider |
 | `TRACKINGMORE_API_KEY` | Fallback provider |
+| `SHADOWFAX_TOKEN` | Shadowfax direct API — used first for `SF…` AWBs |
+| `SHADOWFAX_API_BASE` | Optional; defaults to `https://dale.shadowfax.in/api` |
 | `ALLOWED_ORIGINS` | CORS allowlist (comma separated) |
 | `MAX_NEW_PER_MONTH` | Default 100 — caps new registrations per month |
 | `MAX_NEW_PER_DAY` | Default 25 — caps new registrations per day |

@@ -36,6 +36,9 @@
 import { http } from '@google-cloud/functions-framework';
 
 const TM_BASE = "https://api.trackingmore.com/v4";
+/* Shadowfax direct API. Production host is dale.shadowfax.in; staging is
+   dale.staging.shadowfax.in. The token is a Cloud Run variable, never in the repo. */
+const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
 const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -332,6 +335,69 @@ function tmNormalise(item, tn, courierCode) {
   };
 }
 
+/* ------------------------------------------------------------------ Shadowfax
+   GET /v4/clients/orders/{awb}/track/  ->  { order_details, tracking_details }
+   Auth header: "Authorization: Token <token>"
+   Only used for Shadowfax AWBs (SF...). Returns null when it has nothing, so the
+   caller can fall through to the aggregators. Never registers anything, so it
+   spends no aggregator quota. */
+const SF_STATUS = {
+  "delivered": "Delivered",
+  "out_for_delivery": "Out for delivery",
+  "picked": "Picked up",
+  "picked_up": "Picked up",
+  "recd_at_fwd_hub": "In transit",
+  "in_transit": "In transit",
+  "dispatched": "In transit",
+  "assigned": "Out for pickup",
+  "cancelled": "Cancelled",
+  "returned": "Returned to sender",
+  "returned_to_client": "Returned to sender",
+  "rto": "Returning to sender",
+  "exception": "Delivery exception",
+  "undelivered": "Delivery attempted",
+};
+
+function sfNormalise(j, tn) {
+  const od = (j && j.order_details) || {};
+  const tl = Array.isArray(j && j.tracking_details) ? j.tracking_details : [];
+  const events = tl.map((e) => ({
+    date: e.created || "",
+    activity: cleanActivity(e.status || e.status_id || e.remarks || ""),
+    location: e.location || "",
+  }));
+  events.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  const sid = String(od.status || "").toLowerCase();
+  const last = events[events.length - 1] || {};
+  return {
+    status: SF_STATUS[sid] || pretty(od.status_display || od.status || "Pending"),
+    courier: "shadowfax",
+    delivered: sid === "delivered",
+    last_location: last.location || "",
+    last_update: last.date || "",
+    track_url: "https://www.shadowfax.in/track/" + encodeURIComponent(tn),
+    eta: od.promised_delivery_date || "",
+    events,
+  };
+}
+
+async function shadowfaxLookup(tn, token) {
+  const url = SF_BASE + "/v4/clients/orders/" + encodeURIComponent(tn) + "/track/";
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: "Token " + token, Accept: "application/json" },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (res.status === 401 || res.status === 403) return { value: null, error: "auth" };
+  if (res.status === 404) return { value: null, error: null };
+  if (!res.ok) return { value: null, error: "provider_error" };
+  let j;
+  try { j = await res.json(); } catch (_) { return { value: null, error: "provider_error" }; }
+  if (!j || !j.order_details) return { value: null, error: null };
+  return { value: sfNormalise(j, tn), error: null };
+}
+
 async function trackingMoreLookup(tn, courierCode, key, mayRegister) {
   const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
 
@@ -436,7 +502,19 @@ http('track', async (req, res) => {
   let sawProviderError = false;
   let registeredAny = false;
 
-  if (asKey) {
+  /* Shadowfax AWBs go straight to Shadowfax first: fresher than any aggregator
+     and it costs nothing against the registration budget. */
+  const sfToken = process.env.SHADOWFAX_TOKEN;
+  const looksLikeShadowfax = /^SF\d{8,}$/i.test(tn) || slugRaw === "shadowfax";
+  if (sfToken && looksLikeShadowfax) {
+    try {
+      const r = await shadowfaxLookup(tn, sfToken);
+      if (r.value) { out = r.value; source = "shadowfax"; }
+      if (r.error === "provider_error" || r.error === "auth") sawProviderError = true;
+    } catch (_) { sawProviderError = true; }
+  }
+
+  if (asKey && !(out && (out.events || []).length)) {
     try {
       const r = await afterShipLookup(tn, slugRaw, asKey, mayRegister);
       if (r.value) { out = r.value; source = "aftership"; }
