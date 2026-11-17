@@ -159,6 +159,19 @@
 
   /* ad */
   .ad-slot{margin:20px 0}
+  .editorial{margin-top:26px;border-top:1px solid #e5eaec;padding-top:18px}
+  .editorial h2{font-size:17px;margin:22px 0 8px;color:var(--brand-dark)}
+  .editorial h2:first-child{margin-top:0}
+  .editorial p,.editorial li{font-size:14.5px;line-height:1.65;color:#25313a}
+  .editorial p{margin:0 0 10px}
+  .editorial ul{margin:0 0 12px;padding-left:20px}
+  .editorial li{margin-bottom:5px}
+  .fmt-table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13.5px}
+  .fmt-table th,.fmt-table td{border:1px solid #dde4e7;padding:7px 9px;text-align:left}
+  .fmt-table th{background:#f0f5f3;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#5b6572}
+  .fmt-table td:nth-child(2),.fmt-table td:nth-child(3){font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .faq h3{font-size:14.5px;margin:16px 0 4px;color:#25313a}
+  .faq p{margin:0 0 8px}
   .ad-label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;text-align:center;margin-bottom:5px}
   .ad-ph{border:1.5px dashed #cbd5e1;border-radius:14px;background:repeating-linear-gradient(45deg,#fbfdfe,#fbfdfe 12px,#f3f7f9 12px,#f3f7f9 24px);
     color:#94a3b8;display:grid;place-items:center;text-align:center;padding:20px;font-size:13px;min-height:96px}
@@ -251,6 +264,80 @@
       <div class="ad-label">Advertisement</div>
       <div id="ad-top"></div>
     </div>
+
+    <!-- ===== editorial content (homepage depth) ===== -->
+    <div class="editorial">
+      <h2>How parcel tracking works in India</h2>
+      <p>Every parcel booked with an Indian courier is given a number at the counter or on the
+      seller's dashboard. Delhivery and Shadowfax call it an <b>AWB</b>; DTDC and VRL call it a
+      <b>consignment</b> or <b>LR number</b>; Gati calls it a <b>docket</b>. They all mean the same
+      thing: a reference the courier scans at each stage of the journey, from pickup to delivery.</p>
+      <p>That number is the only thing needed to see where a parcel is. This page sends it to the
+      courier's own system and shows what comes back. Nothing is guessed - if a courier has not
+      scanned a parcel yet, no amount of refreshing will make a status appear.</p>
+
+      <h2>Tracking number formats we recognise</h2>
+      <p>Couriers use different shapes, which is how the courier is detected automatically:</p>
+      <table class="fmt-table">
+        <tr><th>Courier</th><th>Typical format</th><th>Example</th></tr>
+        <tr><td>Delhivery</td><td>12-14 digits</td><td>19041975036623</td></tr>
+        <tr><td>DTDC</td><td>D, V, X or Z + 7-11 digits</td><td>D3504296090</td></tr>
+        <tr><td>Ekart</td><td>FMPP, FMP, DSPC or SHCP + digits</td><td>FMPP4400829920</td></tr>
+        <tr><td>Shadowfax</td><td>SF + 8 or more digits</td><td>SF44302070897</td></tr>
+        <tr><td>India Post / Speed Post</td><td>Two letters + 9 digits + IN</td><td>EE123456789IN</td></tr>
+        <tr><td>Blue Dart</td><td>11 digits</td><td>12345678901</td></tr>
+        <tr><td>VRL Logistics</td><td>LR number, about 10 digits</td><td>1105447592</td></tr>
+        <tr><td>Gati (Allcargo)</td><td>Docket, 9-10 digits</td><td>428343662</td></tr>
+        <tr><td>Cainiao / AliExpress</td><td>ALS or LP + digits</td><td>LP00123456789</td></tr>
+      </table>
+      <p>If a number is not recognised, pick the courier from the dropdown and search again.</p>
+
+      <h2>What each status actually means</h2>
+      <ul class="glossary">
+        <li><b>Manifested / Booked</b> - the courier has accepted the parcel. Nothing has moved yet.</li>
+        <li><b>Picked up</b> - collected from the sender and on its way to a hub.</li>
+        <li><b>In transit</b> - moving between hubs. Long gaps are normal on road routes.</li>
+        <li><b>Out for delivery</b> - on a vehicle for delivery today.</li>
+        <li><b>Delivery attempted (NDR)</b> - the agent could not hand it over. Usually a wrong
+        address or nobody available. Re-attempt needs action from you or the sender.</li>
+        <li><b>Delivered</b> - a handover was recorded, with a signature, OTP or named recipient.</li>
+        <li><b>RTO</b> - returning to the sender, usually after failed attempts or a refusal.</li>
+      </ul>
+
+      <h2>Frequently asked questions</h2>
+      <div class="faq">
+        <h3>Why has my tracking not updated for two days?</h3>
+        <p>Most Indian couriers scan at hubs, not continuously. A parcel on a long road leg can show
+        nothing for a day or more. Five working days without a scan is the point at which it is worth
+        contacting the courier.</p>
+
+        <h3>Why does this page show a different status from the courier's own site?</h3>
+        <p>Data is fetched when you open the page, and results are cached for ten minutes. The
+        courier's own site is always the freshest record. If the two disagree, trust the courier.</p>
+
+        <h3>Can I track an Amazon order ID like 404-5350832-5578719?</h3>
+        <p>No. That is Amazon's order number, not a courier number, and no third party can resolve it.
+        Open Amazon, go to Your Orders, and look for the courier's AWB - then enter that here.</p>
+
+        <h3>What if my courier is not listed?</h3>
+        <p>Pick the closest match from the dropdown, or use the courier's own tracking page. Some
+        couriers - APSRTC Cargo, Porter and Rapido - publish no tracking data at all, so this page
+        links you straight to their site instead.</p>
+
+        <h3>Do I need to save my parcels?</h3>
+        <p>No, but it helps. Saved parcels stay in this browser only, and are re-checked when you open
+        the page so you can see which ones moved since your last visit. Nothing is uploaded or shared.</p>
+
+        <h3>Where can I read more?</h3>
+        <p>There are detailed guides for
+        <a href="guides/delhivery-tracking-guide.html">Delhivery</a>,
+        <a href="guides/dtdc-tracking-guide.html">DTDC</a>,
+        <a href="guides/ekart-tracking-guide.html">Ekart</a>,
+        <a href="guides/vrl-logistics-tracking-guide.html">VRL</a> and
+        <a href="guides/what-tracking-status-means.html">every tracking status</a> in the
+        <a href="guides/index.html">guides section</a>.</p>
+      </div>
+    </div>
   </section>
 
   <!-- ===== TAB: shop ===== -->
@@ -275,7 +362,7 @@
   <div><a href="about.html">About</a> &middot; <a href="privacy.html">Privacy Policy</a> &middot;
   <a href="terms.html">Terms</a> &middot;
     <a href="guides/index.html">Guides</a> &middot;
-    <a href="mailto:hsk2020eseller@gmail.com">Contact</a> &middot;
+    <a href="contact.html">Contact</a> &middot;
     <a href="https://wa.me/918978468766?text=Feedback%20on%20the%20parcel%20tracker%0A%0AWhat%20I%20was%20tracking%3A%20%0AWhat%20worked%20well%3A%20%0AWhat%20did%20not%20work%3A%20%0A" target="_blank" rel="noopener">Give feedback</a></div>
   <div><a href="https://hsk2020.in" target="_blank" rel="noopener">hsk2020.in</a> &middot;
     <a href="https://hsk.co.in" target="_blank" rel="noopener">hsk.co.in</a></div>

@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
 
+# Google's ad crawler - needed so AdSense can verify page content
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: AdsBot-Google
+Allow: /
+
 Sitemap: https://hskparcel.in/sitemap.xml
