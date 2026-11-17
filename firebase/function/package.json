@@ -1,0 +1,14 @@
+{
+  "name": "hsk-track-function",
+  "version": "1.0.0",
+  "description": "HSK Parcel Tracker - live status function",
+  "type": "module",
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "functions-framework --target=track --signature-type=http"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0"
+  }
+}

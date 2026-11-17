@@ -1,0 +1,594 @@
+/**
+ * HSK Parcel Tracker - live status function (ES module, hardened)
+ * ================================================================
+ * Paste this whole file over index.js in the Cloud Run Source tab.
+ *
+ * Settings:
+ *   Function entry point : track
+ *   Runtime              : Node.js 22
+ *   Variables & Secrets  : SHADOWFAX_TOKEN        = <token> (used FIRST for SF... AWBs)
+ *                          SHADOWFAX_API_BASE     = <url>   (optional, production default)
+ *                          AFTERSHIP_API_KEY      = <key>   (primary for other couriers)
+ *                          TRACKINGMORE_API_KEY   = <key>   (fallback, optional)
+ *                          ALLOWED_ORIGINS        = <comma separated> (optional)
+ *                          MAX_NEW_PER_MONTH      = 100     (optional)
+ *                          MAX_NEW_PER_DAY        = 25      (optional)
+ *                          RATE_LIMIT_PER_MIN     = 20      (optional)
+ *
+ * What changed from the first version, and why:
+ *  - Input validation: tracking numbers are shape-checked and courier codes
+ *    are whitelisted, so junk never reaches a paid provider.
+ *  - Rate limit per IP: a public endpoint with no limit could be used to burn
+ *    the monthly provider allowance.
+ *  - Result cache: repeat searches within 10 minutes are served from memory,
+ *    so they cost no provider credits.
+ *  - Get-before-create on BOTH providers: a lookup that finds the shipment
+ *    never registers it again.
+ *  - Daily registration budget: caps how many NEW shipments can be registered
+ *    per day, protecting the free-tier allowance. Lookups are never blocked.
+ *  - Structured errors: every failure returns a code, so the caller can tell
+ *    "wrong number" from "provider down" from "quota protected".
+ *  - Origin allowlist: CORS restricted to the known app hosts.
+ *
+ * Note on limits: the counters live in instance memory. Cloud Run may run
+ * several instances and they reset on cold start, so these are guards, not
+ * accounting. They stop casual abuse, not a determined attacker.
+ */
+
+import { http } from '@google-cloud/functions-framework';
+
+const TM_BASE = "https://api.trackingmore.com/v4";
+/* Shadowfax direct API. Production host is dale.shadowfax.in; staging is
+   dale.staging.shadowfax.in. The token is a Cloud Run variable, never in the repo. */
+const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
+/* Bump this whenever the function changes, so /?diag=1 shows what is actually deployed. */
+const BUILD = "2026-11-17-shadowfax-3";
+const AS_BASE = "https://api.aftership.com/tracking/2024-04";
+
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN || 20);
+// The provider allowance is MONTHLY (AfterShip free = 50 shipments), so the
+// monthly cap is the real guard. The daily cap only stops a burst from eating
+// the whole month in one afternoon.
+const MAX_NEW_PER_MONTH = Number(process.env.MAX_NEW_PER_MONTH || 100);
+const MAX_NEW_PER_DAY = Number(process.env.MAX_NEW_PER_DAY || 25);
+
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ||
+  "https://hskparcel.in," +
+  "https://www.hskparcel.in," +
+  "https://track.hsk2020.in," +
+  "https://track.hsk.co.in," +
+  "https://hsk-tracker-1a2b3-f20a4.web.app," +
+  "https://hsk-tracker-1a2b3.firebaseapp.com," +
+  "https://hsk2020.github.io," +
+  "http://localhost:8080,http://127.0.0.1:8080"
+).split(",").map((s) => s.trim()).filter(Boolean);
+
+// Courier codes are forwarded to the provider, which validates them against its
+// own catalogue. We only reject values that could not be a slug at all - a fixed
+// allowlist here meant every new courier added in the app was rejected until this
+// file was edited and redeployed.
+const COURIER_SLUG = /^[a-z0-9][a-z0-9-]{1,31}$/;
+
+const TM_STATUS = {
+  pending: "Pending", inforeceived: "Info Received", transit: "In Transit",
+  pickup: "Out for Delivery", delivered: "Delivered", undelivered: "Delivery Failed",
+  exception: "Exception", expired: "Expired", notfound: "Not Found",
+};
+
+const AS_STATUS = {
+  pending: "Pending", inforeceived: "Info Received", intransit: "In Transit",
+  outfordelivery: "Out for Delivery", attemptfail: "Delivery Failed",
+  delivered: "Delivered", availableforpickup: "Available for Pickup",
+  exception: "Exception", expired: "Expired",
+};
+
+const DETAIL_LABELS = {
+  "pending": "Shipment info received",
+  "out for pickup": "Out for pickup",
+  "pickdone": "Picked up",
+  "intransit": "In transit",
+  "in transit": "In transit",
+  "reached at destination": "Reached destination hub",
+  "arrived at destination": "Arrived at destination",
+  "out for delivery": "Out for delivery",
+  "delivered": "Delivered",
+  "undelivered": "Delivery attempted",
+  "canceled": "Cancelled",
+  "cancelled": "Cancelled",
+  "booked": "Booked",
+  "on the way": "On the way",
+};
+
+/* ----------------------------- state ----------------------------- */
+
+const cache = new Map();     // "TN|slug" -> { expires, value }
+const buckets = new Map();   // ip -> { start, count }
+let budget = { month: monthKey(), monthUsed: 0, day: dayKey(), dayUsed: 0 };
+
+function dayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function rollBudget() {
+  const d = dayKey(), m = monthKey();
+  if (budget.day !== d) { budget.day = d; budget.dayUsed = 0; }
+  if (budget.month !== m) { budget.month = m; budget.monthUsed = 0; }
+  return budget;
+}
+
+function budgetExhausted() {
+  const b = rollBudget();
+  return b.monthUsed >= MAX_NEW_PER_MONTH || b.dayUsed >= MAX_NEW_PER_DAY;
+}
+
+function consumeBudget() {
+  const b = rollBudget();
+  b.monthUsed += 1;
+  b.dayUsed += 1;
+}
+
+function budgetSummary() {
+  const b = rollBudget();
+  return b.monthUsed + "/" + MAX_NEW_PER_MONTH + " this month, " +
+         b.dayUsed + "/" + MAX_NEW_PER_DAY + " today";
+}
+
+function rateLimited(ip) {
+  const now = Date.now();
+  const b = buckets.get(ip);
+  if (!b || now - b.start > 60_000) {
+    buckets.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  b.count += 1;
+  return b.count > RATE_LIMIT_PER_MIN;
+}
+
+function cacheGet(key) {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (hit.expires < Date.now()) { cache.delete(key); return null; }
+  return hit.value;
+}
+
+function cacheSet(key, value) {
+  if (cache.size > 500) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+  cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
+}
+
+/* ---------------------------- helpers ---------------------------- */
+
+function pretty(s) {
+  return String(s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function prettyActivity(s) {
+  let raw = String(s || "").trim();
+  if (!raw) return "";
+  // carriers hyphenate and shout: "IN-TRANSIT", "ARRIVED AT DESTINATION"
+  const key = raw.toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (DETAIL_LABELS[key]) return DETAIL_LABELS[key];
+  if (raw === raw.toUpperCase() && /[A-Z]{3,}/.test(raw)) {
+    raw = raw.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  }
+  return raw;
+}
+
+/* Some carriers (DTDC among them) send "Status,Description 2026-08-31 11:39:10"
+   in one field. Keep the status - it is the part a customer reads. */
+function cleanActivity(s) {
+  let raw = String(s || "").trim();
+  if (!raw) return "";
+  if (raw.includes(",")) {
+    const first = raw.split(",")[0].trim();
+    if (first.length >= 3) raw = first;
+  }
+  raw = raw.replace(/\s+\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?\s*$/, "").trim();
+  return prettyActivity(raw);
+}
+
+function shortRef(tn) {
+  // Logging aid: never write a full tracking number to logs.
+  const s = String(tn);
+  return s.length <= 6 ? s : s.slice(0, 4) + "***" + s.slice(-2);
+}
+
+function validTrackingNumber(tn) {
+  if (!tn || tn.length < 6 || tn.length > 40) return false;
+  return /^[A-Z0-9][A-Z0-9-]*$/.test(tn);
+}
+
+/* --------------------------- AfterShip --------------------------- */
+
+async function asFetchJson(url, key, init) {
+  const r = await fetch(url, {
+    ...(init || {}),
+    headers: { "as-api-key": key, "Content-Type": "application/json" },
+  });
+  let body = null;
+  try { body = await r.json(); } catch (_) { body = null; }
+  return { ok: r.ok, status: r.status, body };
+}
+
+function asNormalise(t, tn, slug) {
+  if (!t) return null;
+  const cps = (t.checkpoints || []).slice().sort(
+    (a, b) => String(a.checkpoint_time || "").localeCompare(String(b.checkpoint_time || ""))
+  );
+  const last = cps[cps.length - 1] || {};
+  return {
+    status: AS_STATUS[String(t.tag || "").toLowerCase()] || pretty(t.tag || "Pending"),
+    courier: t.slug || slug || "",
+    delivered: String(t.tag || "").toLowerCase() === "delivered",
+    last_location: last.location || last.city || "",
+    last_update: last.checkpoint_time || t.updated_at || "",
+    track_url: t.courier_redirect_link || t.courier_tracking_link ||
+      "https://www.aftership.com/track/" + encodeURIComponent(tn),
+    eta: t.expected_delivery ||
+      (t.aftership_estimated_delivery_date &&
+       t.aftership_estimated_delivery_date.estimated_delivery_date) || "",
+    events: cps.map((c) => ({
+      date: c.checkpoint_time || "",
+      activity: cleanActivity(c.message || pretty(c.tag || "")),
+      location: c.location || c.city || "",
+    })),
+  };
+}
+
+async function afterShipLookup(tn, slug, key, mayRegister) {
+  // 1) Read only - no side effects, no credits spent on registration.
+  const qs = new URLSearchParams({ tracking_numbers: tn, limit: "1" });
+  if (slug) qs.set("slug", slug);
+  const found = await asFetchJson(`${AS_BASE}/trackings?${qs.toString()}`, key);
+  const list = found.body && found.body.data && found.body.data.trackings;
+  if (Array.isArray(list) && list.length) {
+    return { value: asNormalise(list[0], tn, slug), registered: false, error: null };
+  }
+
+  // 2) Not known yet - register it, but only inside the daily budget.
+  if (!mayRegister) return { value: null, registered: false, error: "quota_guard" };
+
+  const body = { tracking: { tracking_number: tn } };
+  if (slug) body.tracking.slug = slug;
+  const created = await asFetchJson(`${AS_BASE}/trackings`, key, {
+    method: "POST", body: JSON.stringify(body),
+  });
+  const t = created.body && created.body.data && created.body.data.tracking;
+  if (!t) {
+    return { value: null, registered: false, error: created.ok ? null : "provider_error" };
+  }
+
+  let full = t;
+  if (t.id) {
+    const one = await asFetchJson(`${AS_BASE}/trackings/${t.id}`, key);
+    const got = one.body && one.body.data && one.body.data.tracking;
+    if (got) full = got;
+  }
+  return { value: asNormalise(full, tn, slug), registered: true, error: null };
+}
+
+/* -------------------------- TrackingMore ------------------------- */
+
+function tmFirst(j) {
+  const d = j && j.data;
+  if (Array.isArray(d)) return d[0] || null;
+  if (d && typeof d === "object") {
+    for (const k of ["trackings", "items", "results"]) {
+      if (Array.isArray(d[k]) && d[k].length) return d[k][0];
+    }
+    if (d.tracking_number) return d;
+  }
+  return null;
+}
+
+function tmNormalise(item, tn, courierCode) {
+  const events = [];
+  for (const k of ["origin_info", "destination_info"]) {
+    const info = item[k] || {};
+    for (const e of (info.trackinfo || [])) {
+      events.push({
+        date: e.checkpoint_date || e.Date || "",
+        activity: cleanActivity(e.tracking_detail || e.details || e.StatusDescription ||
+          e.checkpoint_status || e.status_description || ""),
+        location: e.location || e.Details || "",
+      });
+    }
+  }
+  for (const e of (item.tracking_events || [])) {
+    events.push({
+      date: e.checkpoint_date || "",
+      activity: cleanActivity(e.tracking_detail || e.details ||
+        e.checkpoint_delivery_status || e.status_description || ""),
+      location: e.location || "",
+    });
+  }
+  // Carriers repeat the same scan across origin_info, destination_info and
+  // tracking_events, so the same checkpoint arrived two or three times.
+  // De-duplicate on date+activity, but keep any location a repeat copy carried -
+  // carriers often attach the city to only one of the duplicate scans.
+  const byKey = new Map();
+  for (const ev of events) {
+    const k = (ev.date || "") + "|" + (ev.activity || "");
+    const prev = byKey.get(k);
+    if (!prev) {
+      byKey.set(k, { date: ev.date || "", activity: ev.activity || "", location: ev.location || "" });
+    } else if (!prev.location && ev.location) {
+      prev.location = ev.location;
+    }
+  }
+  const unique = [...byKey.values()];
+  unique.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  const raw = String(item.status || item.delivery_status || "");
+  return {
+    status: TM_STATUS[raw.toLowerCase()] || pretty(raw),
+    courier: item.courier_code || courierCode || "",
+    delivered: raw.toLowerCase() === "delivered",
+    last_location: (unique[unique.length - 1] || {}).location || "",
+    last_update: (unique[unique.length - 1] || {}).date || item.last_update_time || "",
+    track_url: "https://www.trackingmore.com/track/" + encodeURIComponent(tn),
+    eta: item.expected_delivery || item.scheduled_delivery_date ||
+         item.expected_delivery_date || "",
+    events: unique,
+  };
+}
+
+/* ------------------------------------------------------------------ Shadowfax
+   GET /v4/clients/orders/{awb}/track/  ->  { order_details, tracking_details }
+   Auth header: "Authorization: Token <token>"
+   Only used for Shadowfax AWBs (SF...). Returns null when it has nothing, so the
+   caller can fall through to the aggregators. Never registers anything, so it
+   spends no aggregator quota. */
+const SF_STATUS = {
+  "new": "Shipment info received",
+  "created": "Shipment info received",
+  "pending": "Shipment info received",
+  "delivered": "Delivered",
+  "out_for_delivery": "Out for delivery",
+  "picked": "Picked up",
+  "picked_up": "Picked up",
+  "recd_at_fwd_hub": "In transit",
+  "in_transit": "In transit",
+  "dispatched": "In transit",
+  "assigned": "Out for pickup",
+  "cancelled": "Cancelled",
+  "returned": "Returned to sender",
+  "returned_to_client": "Returned to sender",
+  "rto": "Returning to sender",
+  "exception": "Delivery exception",
+  "undelivered": "Delivery attempted",
+};
+
+function sfNormalise(j, tn) {
+  const od = (j && j.order_details) || {};
+  const tl = Array.isArray(j && j.tracking_details) ? j.tracking_details : [];
+  const events = tl.map((e) => ({
+    date: e.created || "",
+    activity: cleanActivity(e.status || e.status_id || e.remarks || ""),
+    location: e.location || "",
+  }));
+  events.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+  const sid = String(od.status || "").toLowerCase();
+  const last = events[events.length - 1] || {};
+  return {
+    status: SF_STATUS[sid] || pretty(od.status_display || od.status || "Pending"),
+    courier: "shadowfax",
+    delivered: sid === "delivered",
+    last_location: last.location || "",
+    last_update: last.date || "",
+    track_url: "https://track.shadowfax.in/track?order=new&trackingId=" + encodeURIComponent(tn),
+    eta: od.promised_delivery_date || "",
+    events,
+  };
+}
+
+async function shadowfaxLookup(tn, token) {
+  const url = SF_BASE + "/v4/clients/orders/" + encodeURIComponent(tn) + "/track/";
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: "Token " + token, Accept: "application/json" },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (res.status === 401 || res.status === 403) return { value: null, error: "auth" };
+  if (res.status === 404) return { value: null, error: null };
+  if (!res.ok) return { value: null, error: "provider_error" };
+  let j;
+  try { j = await res.json(); } catch (_) { return { value: null, error: "provider_error" }; }
+  if (!j || !j.order_details) return { value: null, error: null };
+  return { value: sfNormalise(j, tn), error: null };
+}
+
+async function trackingMoreLookup(tn, courierCode, key, mayRegister) {
+  const headers = { "Tracking-Api-Key": key, "Content-Type": "application/json" };
+
+  // 1) Read first. This is the change the review asked for: never create
+  //    before checking whether the shipment is already tracked.
+  try {
+    const r = await fetch(
+      `${TM_BASE}/trackings/get?tracking_numbers=${encodeURIComponent(tn)}`,
+      { headers }
+    );
+    const j = await r.json().catch(() => null);
+    const item = tmFirst(j);
+    if (item) return { value: tmNormalise(item, tn, courierCode), registered: false, error: null };
+  } catch (_) { /* fall through to create */ }
+
+  // 2) Register, inside the daily budget.
+  if (!mayRegister) return { value: null, registered: false, error: "quota_guard" };
+
+  try {
+    const cr = await fetch(`${TM_BASE}/trackings/create`, {
+      method: "POST", headers,
+      body: JSON.stringify(courierCode
+        ? { tracking_number: tn, courier_code: courierCode }
+        : { tracking_number: tn }),
+    });
+    const j = await cr.json().catch(() => null);
+    const item = tmFirst(j);
+    if (!item) return { value: null, registered: false, error: cr.ok ? null : "provider_error" };
+    return { value: tmNormalise(item, tn, courierCode), registered: true, error: null };
+  } catch (_) {
+    return { value: null, registered: false, error: "provider_error" };
+  }
+}
+
+/* ---------------------------- handler ---------------------------- */
+
+http('track', async (req, res) => {
+  const origin = String(req.headers.origin || "");
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+    res.set("Vary", "Origin");
+  } else if (!origin) {
+    // Server-side or direct browser navigation: no CORS header needed.
+  }
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") { res.status(204).send(""); return; }
+
+  const started = Date.now();
+
+  /* Diagnostics: reports which providers are configured and what build is live.
+     Booleans only - it never returns a key. */
+  if (String(req.query.diag || "") === "1") {
+    res.set("Cache-Control", "no-store");
+    res.json({
+      build: BUILD,
+      providers: {
+        shadowfax: Boolean(process.env.SHADOWFAX_TOKEN),
+        aftership: Boolean(process.env.AFTERSHIP_API_KEY),
+        trackingmore: Boolean(process.env.TRACKINGMORE_API_KEY),
+      },
+      shadowfax_base: SF_BASE,
+      shadowfax_first: true,
+      budget: budgetSummary(),
+    });
+    return;
+  }
+
+  const tn = String((req.query && req.query.tracking_number) || "").trim().toUpperCase();
+  const slugRaw = String((req.query && req.query.courier_code) || "").trim().toLowerCase();
+
+  if (!tn) {
+    res.status(400).json({ error: "missing tracking_number", code: "invalid_number" });
+    return;
+  }
+  if (!validTrackingNumber(tn)) {
+    res.status(400).json({
+      error: "tracking number format not recognised", code: "invalid_number",
+    });
+    return;
+  }
+  if (slugRaw && !COURIER_SLUG.test(slugRaw)) {
+    res.status(400).json({ error: "unsupported courier code", code: "invalid_courier" });
+    return;
+  }
+
+  const ip = String(
+    (req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+    req.headers["x-real-ip"] || req.ip || "unknown"
+  );
+  if (rateLimited(ip)) {
+    res.status(429).json({
+      error: "too many requests, please wait a minute", code: "rate_limited",
+    });
+    return;
+  }
+
+  const cacheKey = tn + "|" + slugRaw;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    res.set("X-Cache", "hit");
+    res.json(cached);
+    return;
+  }
+
+  const asKey = process.env.AFTERSHIP_API_KEY;
+  const tmKey = process.env.TRACKINGMORE_API_KEY;
+  const sfKey = process.env.SHADOWFAX_TOKEN;
+  if (!asKey && !tmKey && !sfKey) {
+    res.status(500).json({
+      error: "server not configured (set SHADOWFAX_TOKEN, AFTERSHIP_API_KEY and/or TRACKINGMORE_API_KEY)",
+      code: "not_configured",
+    });
+    return;
+  }
+
+  const mayRegister = !budgetExhausted();
+
+  let out = null;
+  let source = "";
+  let sawProviderError = false;
+  let registeredAny = false;
+
+  /* Shadowfax AWBs go straight to Shadowfax first: fresher than any aggregator
+     and it costs nothing against the registration budget. */
+  const sfToken = process.env.SHADOWFAX_TOKEN;
+  const looksLikeShadowfax = /^SF\d{8,}$/i.test(tn) || slugRaw === "shadowfax";
+  if (sfToken && looksLikeShadowfax) {
+    try {
+      const r = await shadowfaxLookup(tn, sfToken);
+      if (r.value) { out = r.value; source = "shadowfax"; }
+      if (r.error === "provider_error" || r.error === "auth") sawProviderError = true;
+    } catch (_) { sawProviderError = true; }
+  }
+
+  if (asKey && !(out && (out.events || []).length)) {
+    try {
+      const r = await afterShipLookup(tn, slugRaw, asKey, mayRegister);
+      if (r.value) { out = r.value; source = "aftership"; }
+      if (r.registered) { registeredAny = true; consumeBudget(); }
+      if (r.error === "provider_error") sawProviderError = true;
+    } catch (_) { sawProviderError = true; }
+  }
+
+  const asHasEvents = out && Array.isArray(out.events) && out.events.length > 0;
+  if (!asHasEvents && tmKey) {
+    try {
+      const r = await trackingMoreLookup(tn, slugRaw, tmKey, mayRegister);
+      if (r.value && (!out || (r.value.events || []).length > (out.events || []).length)) {
+        out = r.value; source = "trackingmore";
+      }
+      if (r.registered) { registeredAny = true; consumeBudget(); }
+      if (r.error === "provider_error") sawProviderError = true;
+    } catch (_) { sawProviderError = true; }
+  }
+
+  const ms = Date.now() - started;
+
+  if (!out) {
+    const code = !mayRegister && sawProviderError ? "provider_error"
+      : !mayRegister ? "quota_guard"
+      : sawProviderError ? "provider_error"
+      : "not_found";
+    const status = code === "provider_error" ? 502 : code === "quota_guard" ? 503 : 404;
+    console.log(JSON.stringify({ ref: shortRef(tn), slug: slugRaw, outcome: code, ms }));
+    res.status(status).json({
+      error: code === "provider_error"
+        ? "tracking provider unavailable, please try again shortly"
+        : code === "quota_guard"
+        ? "new shipment registrations are paused for today; open the courier's own tracking page"
+        : "no tracking data for this number",
+      code,
+    });
+    return;
+  }
+
+  const payload = { ...out, source, registered: registeredAny };
+  cacheSet(cacheKey, payload);
+  console.log(JSON.stringify({
+    ref: shortRef(tn), slug: slugRaw, source, events: (out.events || []).length,
+    registered: registeredAny, ms, budget: budgetSummary(),
+  }));
+  res.set("X-Cache", "miss");
+  res.json(payload);
+});

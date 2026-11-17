@@ -514,9 +514,10 @@ http('track', async (req, res) => {
 
   const asKey = process.env.AFTERSHIP_API_KEY;
   const tmKey = process.env.TRACKINGMORE_API_KEY;
-  if (!asKey && !tmKey) {
+  const sfKey = process.env.SHADOWFAX_TOKEN;
+  if (!asKey && !tmKey && !sfKey) {
     res.status(500).json({
-      error: "server not configured (set AFTERSHIP_API_KEY and/or TRACKINGMORE_API_KEY)",
+      error: "server not configured (set SHADOWFAX_TOKEN, AFTERSHIP_API_KEY and/or TRACKINGMORE_API_KEY)",
       code: "not_configured",
     });
     return;
