@@ -152,8 +152,11 @@ Publisher ID `ca-pub-2396239883686272`.
 | Ad code on all pages | Yes, in `<head>` |
 | `ads.txt` | Served at the domain root, byte-exact |
 | Sites in AdSense | `hskparcel.in` and the `.web.app` host |
-| Approval | **Pending review** |
-| Known risk | AdSense previously rejected the site for "screens without publisher content" — the guides section was added to address that |
+| Approval | **Rejected — both sites** |
+| Outcome | `.web.app` rejected 8 Nov 2026; `hskparcel.in` rejected 17 Nov 2026. Both after the guides, terms page, sitemap and canonical work were in place |
+| Reason given | None specific — the standard "isn't ready to show ads" email, pointing at the Sites page |
+| Decision | Not pursuing further. The ad code stays in place (it serves nothing while unapproved) but no more review requests. The guides are kept for search traffic, which is worth more than ads on a tool page |
+| Revisit if | The site develops real organic search traffic — sites with actual visitors are approved more readily than sites with zero impressions |
 
 Ad units sit on the guide pages only. The tracker screen is deliberately
 ad-light.
