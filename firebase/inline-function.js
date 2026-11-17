@@ -6,7 +6,9 @@
  * Settings:
  *   Function entry point : track
  *   Runtime              : Node.js 22
- *   Variables & Secrets  : AFTERSHIP_API_KEY      = <key>   (primary)
+ *   Variables & Secrets  : SHADOWFAX_TOKEN        = <token> (used FIRST for SF... AWBs)
+ *                          SHADOWFAX_API_BASE     = <url>   (optional, production default)
+ *                          AFTERSHIP_API_KEY      = <key>   (primary for other couriers)
  *                          TRACKINGMORE_API_KEY   = <key>   (fallback, optional)
  *                          ALLOWED_ORIGINS        = <comma separated> (optional)
  *                          MAX_NEW_PER_MONTH      = 100     (optional)
