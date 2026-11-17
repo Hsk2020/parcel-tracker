@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shadowfax Tracking: AWB Format and What the Scans Mean - HSK Parcel Tracker</title>
+<meta name="description" content="Shadowfax AWBs start with SF. How to read one, where to track it, and why the timeline behaves differently from a traditional courier.">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="canonical" href="https://hskparcel.in/guides/shadowfax-tracking-guide.html">
+<style>
+  :root{
+    --brand:#0e7c66; --brand-dark:#0a5c4c; --brand-soft:#e6f4f0;
+    --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --bg:#f2f5f6; --card:#fff;
+    --r:16px; --sh:0 1px 3px rgba(16,24,40,.07),0 10px 26px -14px rgba(16,24,40,.22);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       line-height:1.65;-webkit-font-smoothing:antialiased}
+  header{background:linear-gradient(135deg,var(--brand-dark),var(--brand));color:#fff;padding:22px 20px}
+  header .wrap{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
+  header a.back{color:#fff;text-decoration:none;font-size:14px;opacity:.9;border:1px solid rgba(255,255,255,.35);
+                border-radius:999px;padding:5px 12px}
+  header a.back:hover{opacity:1;background:rgba(255,255,255,.12)}
+  header h1{font-size:19px;margin:0;font-weight:700}
+  header p{margin:2px 0 0;font-size:12.5px;opacity:.85}
+  main{max-width:760px;margin:20px auto 60px;padding:0 16px}
+  .card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:22px 22px 8px;margin-bottom:16px}
+  h2{font-size:16px;margin:22px 0 8px;color:var(--brand-dark)}
+  h2:first-child{margin-top:4px}
+  p{margin:0 0 12px;font-size:14.5px}
+  ul{margin:0 0 14px;padding-left:20px;font-size:14.5px}
+  li{margin-bottom:6px}
+  a{color:var(--brand)}
+  .muted{color:var(--muted);font-size:13px}
+  footer{text-align:center;font-size:12.5px;color:var(--muted);padding:0 16px 40px}
+  footer a{margin:0 6px;text-decoration:none}
+</style>
+<style>  .article{max-width:760px;margin:0 auto;padding:22px 20px 60px}
+  .article h1{font-size:1.55rem;line-height:1.25;margin:0 0 6px}
+  .article .meta{color:var(--muted);font-size:.85rem;margin-bottom:18px}
+  .article h2{font-size:1.12rem;margin:26px 0 8px}
+  .article h3{font-size:1rem;margin:18px 0 6px}
+  .article p,.article li{font-size:.97rem}
+  .article ul,.article ol{padding-left:22px}
+  .article li{margin:5px 0}
+  .cta{display:block;background:var(--brand-soft);border:1px solid #cfe8e0;border-radius:12px;
+       padding:14px 16px;margin:24px 0;text-decoration:none;color:var(--ink)}
+  .cta b{color:var(--brand)}
+  .adbox{margin:26px 0;min-height:90px}
+  .adbox .ad-label{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+                   color:var(--muted);margin-bottom:6px}
+  .related{margin-top:30px;padding-top:16px;border-top:1px solid var(--line)}
+  .related h2{font-size:1rem;margin:0 0 8px}
+  .related a{display:block;padding:5px 0;color:var(--brand);text-decoration:none}
+  table.fmt{width:100%;border-collapse:collapse;margin:12px 0;font-size:.9rem}
+  table.fmt th,table.fmt td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+  table.fmt th{background:var(--brand-soft)}
+</style>
+<meta name="google-adsense-account" content="ca-pub-2396239883686272">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2396239883686272"
+        crossorigin="anonymous"></script>
+<meta property="og:type" content="article">
+<meta property="og:title" content="Shadowfax Tracking: AWB Format and What the Scans Mean">
+<meta property="og:description" content="Shadowfax AWBs start with SF. How to read one, where to track it, and why the timeline behaves differently from a traditional courier.">
+<meta property="og:url" content="https://hskparcel.in/guides/shadowfax-tracking-guide.html">
+<meta property="og:image" content="https://hskparcel.in/og-image.png">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="back" href="../index.html">&larr; Tracker</a>
+    <div><h1 style="font-size:1.15rem;margin:0">HSK Parcel Tracker</h1>
+      <div style="font-size:.8rem;opacity:.85">Guides</div></div>
+  </div>
+</header>
+
+<main class="article">
+  <h1>Shadowfax Tracking: AWB Format and What the Scans Mean</h1>
+  <div class="meta">Updated 9 November 2026 &middot; Hrudai Store Kart</div>
+  <p>Shadowfax grew out of last-mile delivery for marketplaces, and its tracking reflects
+  that: frequent scans close to delivery, and thinner detail on the long middle of the journey.</p>
+
+  <h2>The AWB format</h2>
+  <p>Shadowfax airway bill numbers begin with <b>SF</b> followed by digits - for example
+  <b>SF44302070897</b>. That prefix is how this site recognises a Shadowfax parcel without you
+  choosing the courier from a list.</p>
+  <p>The number appears on the shipping label, in the seller's dispatch message, and in the
+  SMS sent when the parcel is out for delivery.</p>
+
+  <h2>Where to track</h2>
+  <p>The official tracker is track.shadowfax.in. Enter the AWB and the page shows the current
+  status plus the scan history. Sellers who book through Shadowfax's own dashboard see the
+  same information in more detail, including rider assignment.</p>
+
+  <h2>What the statuses mean</h2>
+  <table class="fmt">
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td>New</td><td>Booked. The AWB exists but nobody has collected the parcel yet.</td></tr>
+    <tr><td>Assigned for seller pickup</td><td>A rider has been allocated to collect it</td></tr>
+    <tr><td>Out for pickup</td><td>The rider is on the way to the seller</td></tr>
+    <tr><td>Picked up</td><td>Collected and in the network</td></tr>
+    <tr><td>In transit</td><td>Moving between facilities</td></tr>
+    <tr><td>Out for delivery</td><td>With the delivery agent</td></tr>
+    <tr><td>Delivered</td><td>Handed over and recorded</td></tr>
+  </table>
+
+  <h2>Why a new parcel can look stuck at "New"</h2>
+  <p>"New" means the booking exists but the parcel has not been collected. For a marketplace
+  seller that gap is usually a day; for a direct booking it depends when the pickup was
+  scheduled. If it stays at "New" for more than two days, the pickup has probably not been
+  assigned - and only the sender can fix that.</p>
+
+  <h2>Returns get their own AWB</h2>
+  <p>A return pickup is a separate shipment with its own number. If you are watching the
+  original AWB while returning an item, you are watching the wrong one. The return number
+  appears in the return request, not the original order.</p>
+
+  <h2>When a parcel is reassigned</h2>
+  <p>Shadowfax re-plans routes close to delivery, so a parcel can pass to a different delivery
+  partner in the same city without the AWB changing. If the agent's name differs from the one
+  in your SMS, that is why - the number stays the same throughout.</p>
+
+  <h2>If it says delivered and is not with you</h2>
+  <p>Check the reception desk, security and neighbours first. Then raise it with the seller
+  within their claim window, which is often short. Ask them for proof of delivery - it records
+  who signed and when.</p>
+
+
+  <h2>Who actually delivers your parcel</h2>
+  <p>Shadowfax operates a network of delivery partners rather than a single employed fleet in
+  every city. The AWB stays the same while the person carrying it can change. This is normal
+  and is not a sign that the parcel has been handed to an unrelated company.</p>
+
+  <h2>Same-day and quick-commerce orders</h2>
+  <p>Shadowfax also runs hyperlocal delivery for grocery and food apps, where the journey is
+  measured in minutes and tracking is a live map inside the ordering app. A parcel with an SF
+  AWB and a scan history is a normal e-commerce shipment, not a hyperlocal order - the two
+  behave very differently and it is worth knowing which you have.</p>
+
+  <h2>What a seller sees that you do not</h2>
+  <p>The seller's dashboard shows pickup scheduling, rider assignment and failed-attempt
+  reasons in more detail than the public tracker. If your timeline is thin, the sender can
+  usually tell you more in one message than the public page will show.</p>
+
+  <h2>Tracking without refreshing</h2>
+  <p>Parcel status changes a handful of times a day at most. Opening the page repeatedly will
+  not make a scan appear. Save the parcel in a tracker and check once in the morning and once
+  in the evening - that matches how often the underlying data actually moves.</p>
+
+  <h2>Why the public page shows less than the seller's dashboard</h2>
+  <p>Shadowfax's public tracker shows status and scans; the seller's dashboard also shows
+  pickup scheduling, rider details and the reason a delivery attempt failed. For a parcel that
+  is stuck or was refused, the seller can see the cause in one screen while the public page
+  shows only that an attempt happened. That is why the sender is usually the faster route to an
+  answer.</p>
+
+  <h2>What to send the seller if you need help</h2>
+  <p>One message with the AWB, the last status you saw and the date of it gets a faster answer
+  than a long description. The seller can see pickup scheduling and failed-attempt reasons that
+  the public tracker does not show, so they can usually tell you in one reply what the page
+  cannot. Keep it to those three facts and the exchange is short.</p>
+  <a class="cta" href="../index.html"><b>Track your parcel now &rarr;</b><br>Enter any tracking number at hskparcel.in and see the courier scans. The courier is detected automatically.</a>
+
+  <!-- Ad unit removed while the site is not AdSense-approved: an empty
+       "Advertisement" box is a policy flag and looks unfinished to readers.
+       Re-add the <ins> block here once approval is granted. -->
+
+  <div class="related">
+    <h2>More guides</h2>
+      <a href="how-to-track-any-parcel-india.html">How to track any parcel in India</a>
+      <a href="what-tracking-status-means.html">What each tracking status actually means</a>
+      <a href="ekart-tracking-guide.html">Ekart tracking for marketplace orders</a>
+  </div>
+</main>
+
+<footer style="text-align:center;color:var(--muted);font-size:.85rem;padding:0 20px 40px">
+  <div><a href="../index.html">Tracker</a> &middot; <a href="../about.html">About</a> &middot;
+       <a href="../privacy.html">Privacy Policy</a> &middot;
+       <a href="../terms.html">Terms</a> &middot;
+       <a href="../contact.html">Contact</a> &middot;
+       <a href="index.html">All guides</a></div>
+  <div style="margin-top:8px">hsk2020.in &middot; hsk.co.in</div>
+  <div>&copy; 2026 Hrudai Store Kart</div>
+</footer>
+</body>
+</html>
