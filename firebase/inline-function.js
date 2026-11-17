@@ -39,6 +39,8 @@ const TM_BASE = "https://api.trackingmore.com/v4";
 /* Shadowfax direct API. Production host is dale.shadowfax.in; staging is
    dale.staging.shadowfax.in. The token is a Cloud Run variable, never in the repo. */
 const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
+/* Bump this whenever the function changes, so /?diag=1 shows what is actually deployed. */
+const BUILD = "2026-11-17-shadowfax-1";
 const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -447,6 +449,24 @@ http('track', async (req, res) => {
   if (req.method === "OPTIONS") { res.status(204).send(""); return; }
 
   const started = Date.now();
+
+  /* Diagnostics: reports which providers are configured and what build is live.
+     Booleans only - it never returns a key. */
+  if (String(req.query.diag || "") === "1") {
+    res.set("Cache-Control", "no-store");
+    res.json({
+      build: BUILD,
+      providers: {
+        shadowfax: Boolean(process.env.SHADOWFAX_TOKEN),
+        aftership: Boolean(process.env.AFTERSHIP_API_KEY),
+        trackingmore: Boolean(process.env.TRACKINGMORE_API_KEY),
+      },
+      shadowfax_base: SF_BASE,
+      shadowfax_first: true,
+      budget: budgetSummary(),
+    });
+    return;
+  }
 
   const tn = String((req.query && req.query.tracking_number) || "").trim().toUpperCase();
   const slugRaw = String((req.query && req.query.courier_code) || "").trim().toLowerCase();
