@@ -273,6 +273,7 @@
 
 <footer class="foot">
   <div><a href="about.html">About</a> &middot; <a href="privacy.html">Privacy Policy</a> &middot;
+  <a href="terms.html">Terms</a> &middot;
     <a href="guides/index.html">Guides</a> &middot;
     <a href="mailto:hsk2020eseller@gmail.com">Contact</a> &middot;
     <a href="https://wa.me/918978468766?text=Feedback%20on%20the%20parcel%20tracker%0A%0AWhat%20I%20was%20tracking%3A%20%0AWhat%20worked%20well%3A%20%0AWhat%20did%20not%20work%3A%20%0A" target="_blank" rel="noopener">Give feedback</a></div>
@@ -433,16 +434,17 @@ async function lookupLive(num, det){
     const code = det && TM_CODES[det.name];
     if(code) url.searchParams.set("courier_code", code);
     const r=await fetch(url.toString(),{cache:"no-store"});
-    if(r.status===429){ toast("Too many searches - wait a minute and try again"); return null; }
-    if(r.status===503){ toast("Live lookup is paused for today - open the courier's own page"); return null; }
-    if(!r.ok) return null;
+    if(r.status===429){ toast("Too many searches - wait a minute and try again"); return {__failed:"rate"}; }
+    if(r.status===503){ toast("Live lookup is paused for today - open the courier's own page"); return {__failed:"paused"}; }
+    if(r.status===404) return null;               // the courier genuinely has no record
+    if(!r.ok) return {__failed:"http"+r.status};  // provider or server problem
     const j=await r.json();
     if(j && (j.status||j.courier)) return {
       number:num, courier:j.courier||"", status:j.status||"", delivered:j.delivered?"YES":"",
       lastLocation:j.last_location||"", lastUpdate:j.last_update||"",
       eta:j.eta||"", trackUrl:j.track_url||"", events:j.events||[], source:"live"
     };
-  }catch(e){}
+  }catch(e){ return {__failed:"network"}; }   // offline, CORS, timeout
   return null;
 }
 
@@ -474,20 +476,23 @@ async function trackNumber(numRaw, courierOverride){
   } else {
     // 2) live API (if configured)
     const live = await lookupLive(num, det);
-    if(live){
+    if(live && !live.__failed){
       parcel=live;
       if(!parcel.courier && det) parcel.courier=det.name;
     } else {
+      const checkFailed = !!(live && live.__failed);
       // 3) manual hand-off
       const isTBA=/^TBA\d{10,}$/i.test(num);
       const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
       const isStoreOrder=/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(num);
       const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics","Gati (Allcargo)"].includes((det&&det.name)||"");
-      parcel={ number:num, courier:(det&&det.name)||"", status:"Not tracked yet",
+      parcel={ number:num, courier:(det&&det.name)||"", status:checkFailed?"Couldn't check":"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
         trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
         mobile: (det && det.name === "APSRTC Cargo") ? mobile : "",
-        note: isTBA
+        note: checkFailed
+          ? "We could not reach the tracking service just now, so this is not a status. Your parcel is not lost - the lookup simply failed. Tap Track again in a moment, or open the courier site. If it keeps failing, the number may not be with that courier."
+          : isTBA
           ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
           : isAmzOrder
           ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
