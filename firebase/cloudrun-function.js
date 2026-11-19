@@ -45,8 +45,12 @@ const TM_BASE = "https://api.trackingmore.com/v4";
 const SF_BASE = process.env.SHADOWFAX_API_BASE || "https://dale.shadowfax.in/api";
 /* DTDC direct API. Key goes in the "api-key" header, supplied as a Cloud Run variable. */
 const DTDC_BASE = process.env.DTDC_API_BASE || "https://appapi.dtdc.in";
+/* Sarvam AI - used only to phrase answers in the user's language.
+   Facts always come from our own lookup, never from the model. */
+const SARVAM_BASE = "https://api.sarvam.ai";
+const SARVAM_MODEL = process.env.SARVAM_MODEL || "sarvam-105b-conversations";
 /* Bump this whenever the function changes, so /?diag=1 shows what is actually deployed. */
-const BUILD = "2026-11-17-dtdc-1";
+const BUILD = "2026-11-19-chat-1";
 const AS_BASE = "https://api.aftership.com/tracking/2024-04";
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -411,6 +415,103 @@ async function shadowfaxLookup(tn, token) {
   return { value: sfNormalise(j, tn), error: null };
 }
 
+/* ------------------------------------------------------------ shared lookup
+   Mirrors the order used by the main handler, for callers that need a result
+   without going through the HTTP query parsing (the chat endpoint). */
+async function lookupAny(tn, slug) {
+  const sfKey = process.env.SHADOWFAX_TOKEN;
+  const dtdcKey = process.env.DTDC_API_KEY;
+  const asKey = process.env.AFTERSHIP_API_KEY;
+  const tmKey = process.env.TRACKINGMORE_API_KEY;
+
+  if (sfKey && (/^SF\d{8,}$/i.test(tn) || slug === "shadowfax")) {
+    try { const r = await shadowfaxLookup(tn, sfKey); if (r.value) return r.value; } catch (_) {}
+  }
+  if (dtdcKey && (/^[DVXZ]\d{7,11}$/i.test(tn) || slug === "dtdc")) {
+    try { const r = await dtdcLookup(tn, dtdcKey); if (r.value) return r.value; } catch (_) {}
+  }
+  if (asKey) {
+    try { const r = await afterShipLookup(tn, slug, asKey, false); if (r.value) return r.value; } catch (_) {}
+  }
+  if (tmKey) {
+    try { const r = await trackingMoreLookup(tn, slug, tmKey, false); if (r.value) return r.value; } catch (_) {}
+  }
+  return null;
+}
+
+/* Pull a tracking number out of free text. */
+const CHAT_PATTERNS = [
+  /\b[A-Z]{2}\d{9}IN\b/i,                 // India Post
+  /\bSF\d{8,}\b/i,                        // Shadowfax
+  /\b(?:FMPP|FMPC|FMP|DSPC|SHCP)\d{6,}\b/i, // Ekart
+  /\b[DVXZ]\d{7,11}\b/i,                  // DTDC
+  /\b1Z[0-9A-Z]{16}\b/i,                  // UPS
+  /\b(?:TBA|TBC|TBM)\d{10,}\b/i,          // Amazon
+  /\b\d{11}\b/,                           // Blue Dart
+  /\b\d{12,14}\b/,                        // Delhivery / XpressBees
+];
+
+function extractTracking(text) {
+  const up = String(text || "").toUpperCase().replace(/\s+/g, " ");
+  for (const re of CHAT_PATTERNS) {
+    const m = up.match(re);
+    if (m) return m[0].replace(/\s+/g, "");
+  }
+  return "";
+}
+
+async function sarvamAnswer(question, facts, key) {
+  const system = [
+    "You are the assistant on HSK Parcel Tracker, an Indian parcel tracking site run by Hrudai Store Kart.",
+    "Answer in the SAME language the user wrote in - Telugu, Hindi or English.",
+    "Be brief: two or three sentences, no markdown, no lists.",
+    "If parcel data is supplied below, use ONLY that data. Never invent a status, a date or a location.",
+    "If no parcel data is supplied, say you need the tracking number and ask for it. Do not guess.",
+    "You cannot change an address, speed up a delivery, or cancel a parcel. If asked, say the sender or the courier must do it.",
+  ].join(" ");
+
+  const user = facts
+    ? `Parcel data from the courier:\n${facts}\n\nUser question: ${question}`
+    : `No parcel data was found in the question.\nUser question: ${question}`;
+
+  const res = await fetch(SARVAM_BASE + "/v1/chat/completions", {
+    method: "POST",
+    headers: { "api-subscription-key": key, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: SARVAM_MODEL,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      temperature: 0.3,
+      max_tokens: 300,
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) return { error: "sarvam_" + res.status };
+  const j = await res.json();
+  const text = j && j.choices && j.choices[0] && j.choices[0].message &&
+    j.choices[0].message.content;
+  return text ? { text: String(text).trim() } : { error: "sarvam_empty" };
+}
+
+function factsFromParcel(p, tn) {
+  const lines = [
+    `tracking number: ${tn}`,
+    `courier: ${p.courier || "unknown"}`,
+    `current status: ${p.status || "unknown"}`,
+    `delivered: ${p.delivered ? "yes" : "no"}`,
+    p.last_location ? `last location: ${p.last_location}` : "",
+    p.last_update ? `last update: ${p.last_update}` : "",
+    p.eta ? `expected delivery: ${p.eta}` : "",
+  ].filter(Boolean);
+  const ev = (p.events || []).slice(-3);
+  if (ev.length) {
+    lines.push("recent scans:");
+    for (const e of ev) lines.push(`- ${e.date} ${e.activity}${e.location ? " at " + e.location : ""}`);
+  } else {
+    lines.push("no scans recorded yet");
+  }
+  return lines.join("\n");
+}
+
 /* --------------------------------------------------------------------- DTDC
    GET /api/customer/integration/consignment/track?reference_number=<AWB>
    Header: api-key: <token>
@@ -578,10 +679,59 @@ http('track', async (req, res) => {
         aftership: Boolean(process.env.AFTERSHIP_API_KEY),
         trackingmore: Boolean(process.env.TRACKINGMORE_API_KEY),
         dtdc: Boolean(process.env.DTDC_API_KEY),
+        chat: Boolean(process.env.SARVAM_API_KEY),
       },
       shadowfax_base: SF_BASE,
       shadowfax_first: true,
       budget: budgetSummary(),
+    });
+    return;
+  }
+
+  /* Ask endpoint: natural-language question -> grounded answer.
+     GET /?chat=<question>  (kept as GET so the static page can call it simply) */
+  const chatQ = String((req.query && req.query.chat) || "").trim();
+  if (chatQ) {
+    const sarvamKey = process.env.SARVAM_API_KEY;
+    if (!sarvamKey) {
+      res.status(503).json({ error: "assistant not configured", code: "chat_not_configured" });
+      return;
+    }
+    if (chatQ.length > 300) {
+      res.status(400).json({ error: "question too long", code: "invalid_question" });
+      return;
+    }
+    const ipc = String((req.headers["x-forwarded-for"] || "").split(",")[0].trim() ||
+      req.headers["x-real-ip"] || req.ip || "unknown");
+    if (rateLimited("chat:" + ipc)) {
+      res.status(429).json({ error: "too many questions, wait a minute", code: "rate_limited" });
+      return;
+    }
+
+    const found = extractTracking(chatQ);
+    let parcel = null;
+    if (found) {
+      try { parcel = await lookupAny(found, ""); } catch (_) { parcel = null; }
+    }
+    const facts = parcel ? factsFromParcel(parcel, found) : "";
+    let answer;
+    try {
+      answer = await sarvamAnswer(chatQ, facts, sarvamKey);
+    } catch (_) {
+      answer = { error: "sarvam_unreachable" };
+    }
+    if (answer.error) {
+      res.status(502).json({ error: "assistant unavailable", code: answer.error });
+      return;
+    }
+    res.set("Cache-Control", "no-store");
+    res.json({
+      answer: answer.text,
+      tracking_number: found || null,
+      status: parcel ? parcel.status : null,
+      courier: parcel ? parcel.courier : null,
+      track_url: parcel ? parcel.track_url : null,
+      model: SARVAM_MODEL,
     });
     return;
   }
