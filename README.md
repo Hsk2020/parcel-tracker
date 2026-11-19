@@ -67,6 +67,8 @@ Set as Cloud Run environment variables — never in the repo:
 | `SHADOWFAX_API_BASE` | Optional; defaults to `https://dale.shadowfax.in/api` |
 | `DTDC_API_KEY` | DTDC direct API — used first for DTDC AWBs |
 | `DTDC_API_BASE` | Optional; defaults to `https://appapi.dtdc.in` |
+| `SARVAM_API_KEY` | Sarvam AI — powers the "Ask about a parcel" assistant |
+| `SARVAM_MODEL` | Optional; defaults to `sarvam-105b-conversations` |
 | `ALLOWED_ORIGINS` | CORS allowlist (comma separated) |
 | `MAX_NEW_PER_MONTH` | Default 100 — caps new registrations per month |
 | `MAX_NEW_PER_DAY` | Default 25 — caps new registrations per day |
@@ -128,6 +130,9 @@ opens their own page instead of pretending to have a timeline:
 - **APSRTC mobile field** — appears only when that courier is selected,
   validated, stored locally, never transmitted
 - **Feedback link** — opens WhatsApp with the message prefilled
+- **Ask about a parcel** — natural-language assistant (English / Telugu / Hindi).
+  The model only phrases the answer; every fact comes from our own courier lookup,
+  so it cannot invent a status. Hidden automatically when `SARVAM_API_KEY` is unset
 - **Installable PWA** with a self-updating service worker (no hard refresh)
 
 ---
