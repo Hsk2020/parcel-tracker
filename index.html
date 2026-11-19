@@ -159,6 +159,26 @@
 
   /* ad */
   .ad-slot{margin:20px 0}
+  /* ---- ask panel ---- */
+  #askBtn{position:fixed;right:16px;bottom:78px;z-index:70;border:0;border-radius:999px;
+    background:var(--brand);color:#fff;font:inherit;font-size:13.5px;font-weight:600;
+    padding:11px 16px;box-shadow:0 6px 18px -6px rgba(16,24,40,.5);cursor:pointer;display:none}
+  #askBtn.show{display:block}
+  #askPanel{position:fixed;right:12px;left:12px;bottom:78px;max-width:520px;margin:0 auto;z-index:75;
+    background:#fff;border-radius:16px;box-shadow:0 12px 40px -10px rgba(16,24,40,.45);
+    padding:14px;display:none}
+  #askPanel.show{display:block}
+  #askPanel h3{margin:0 0 2px;font-size:15px;color:var(--brand-dark)}
+  #askPanel .hint{margin:0 0 10px;font-size:12px;color:var(--muted)}
+  #askRow{display:flex;gap:8px}
+  #askInput{flex:1;border:1px solid #d7dee2;border-radius:10px;padding:10px 12px;font:inherit;font-size:14px}
+  #askSend{border:0;border-radius:10px;background:var(--brand);color:#fff;font:inherit;font-weight:600;
+    font-size:13.5px;padding:0 16px;cursor:pointer}
+  #askSend:disabled{opacity:.55;cursor:default}
+  #askOut{margin-top:10px;font-size:13.5px;line-height:1.55;color:#25313a;white-space:pre-wrap}
+  #askOut:empty{display:none}
+  #askClose{position:absolute;top:10px;right:12px;border:0;background:none;font-size:18px;
+    color:var(--muted);cursor:pointer;line-height:1}
   .editorial{margin-top:26px;border-top:1px solid #e5eaec;padding-top:18px}
   .editorial h2{font-size:17px;margin:22px 0 8px;color:var(--brand-dark)}
   .editorial h2:first-child{margin-top:0}
@@ -368,6 +388,18 @@
     <a href="https://hsk.co.in" target="_blank" rel="noopener">hsk.co.in</a></div>
   <div>&copy; 2026 Hrudai Store Kart</div>
 </footer>
+
+<button id="askBtn" type="button">Ask about a parcel</button>
+<div id="askPanel" role="dialog" aria-label="Parcel assistant">
+  <button id="askClose" type="button" aria-label="Close">&times;</button>
+  <h3>Ask about your parcel</h3>
+  <p class="hint">English, తెలుగు or हिन्दी — include the tracking number.</p>
+  <div id="askRow">
+    <input id="askInput" type="text" placeholder="Where is SF45243078605?" maxlength="300">
+    <button id="askSend" type="button">Ask</button>
+  </div>
+  <div id="askOut"></div>
+</div>
 
 <nav class="tabbar">
   <button data-tab="parcels" class="active">
@@ -866,6 +898,48 @@ async function boot(){
   };
   document.getElementById("courierSelect").addEventListener("change", syncMobileField);
   syncMobileField();
+
+  /* ---------- ask assistant: shown only when the server has a Sarvam key ---------- */
+  (function initAsk(){
+    const btn = document.getElementById("askBtn");
+    const panel = document.getElementById("askPanel");
+    const input = document.getElementById("askInput");
+    const send = document.getElementById("askSend");
+    const out = document.getElementById("askOut");
+    const close = document.getElementById("askClose");
+    if(!btn || !CONFIG.liveApi) return;
+
+    fetch(CONFIG.liveApi + "/?diag=1", {cache:"no-store"})
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if(j && j.providers && j.providers.chat) btn.classList.add("show"); })
+      .catch(()=>{});
+
+    btn.addEventListener("click", () => { panel.classList.add("show"); input.focus(); });
+    close.addEventListener("click", () => panel.classList.remove("show"));
+
+    async function ask(){
+      const q = input.value.trim();
+      if(!q) return;
+      send.disabled = true;
+      out.textContent = "Thinking…";
+      try{
+        const r = await fetch(CONFIG.liveApi + "/?chat=" + encodeURIComponent(q), {cache:"no-store"});
+        const j = await r.json().catch(()=>({}));
+        if(r.ok && j.answer){
+          out.textContent = j.answer;
+          if(j.tracking_number) input.dataset.last = j.tracking_number;
+        } else if(j.code === "rate_limited"){
+          out.textContent = "Too many questions just now — wait a minute and try again.";
+        } else {
+          out.textContent = "The assistant is unavailable right now. You can still track the number above.";
+        }
+      }catch(e){
+        out.textContent = "Could not reach the assistant. Check your connection and try again.";
+      }finally{ send.disabled = false; }
+    }
+    send.addEventListener("click", ask);
+    input.addEventListener("keydown", e => { if(e.key === "Enter") ask(); });
+  })();
 
   document.getElementById("addForm").addEventListener("submit",e=>{
     e.preventDefault();
