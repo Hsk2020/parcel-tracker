@@ -473,6 +473,10 @@ const CARRIERS = [
     url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
 
   // --- Services with no third-party tracking API: selectable, hand-off only ---
+  { name:"Kesari Courier",          re:/$^/,
+    url:"https://www.kesaricourier.com/" },
+  { name:"Hans Air Express",        re:/$^/,
+    url:"https://hansairexpress.com/" },
   { name:"Gati (Allcargo)",         re:/$^/,
     url:"https://www.gati.com/track-by-docket/" },
   { name:"VRL Logistics",           re:/$^/,
@@ -604,7 +608,7 @@ async function trackNumber(numRaw, courierOverride){
       const isTBA=/^TBA\d{10,}$/i.test(num);
       const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
       const isStoreOrder=/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(num);
-      const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics","Gati (Allcargo)"].includes((det&&det.name)||"");
+      const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics","Gati (Allcargo)","Kesari Courier","Hans Air Express"].includes((det&&det.name)||"");
       parcel={ number:num, courier:(det&&det.name)||"", status:checkFailed?"Couldn't check":"Not tracked yet",
         delivered:"", lastLocation:"", lastUpdate:"",
         trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
@@ -620,6 +624,10 @@ async function trackNumber(numRaw, courierOverride){
               ? "No live scans came back for this docket. Tap 'Track on courier site' and enter the docket number from the consignment note - Gati shows old consignments on gatikwe.com rather than gati.com."
               : det.name==="VRL Logistics"
               ? "No live scans came back for this LR number. VRL coverage through tracking providers is partial, so tap 'Track on courier site' and check the LR number (Lorry Receipt) on VRL's own page - it accepts the LR number, not the Courier No."
+              : det.name==="Kesari Courier"
+              ? "Kesari publishes tracking on its own site only. Tap 'Track on courier site' and enter your AWB, docket or GC number at kesaricourier.com - numbers are alphanumeric, usually 10-15 characters, and records take a few hours to appear after pickup."
+              : det.name==="Hans Air Express"
+              ? "Three different companies use the name Hans. If this is a courier or parcel, track it at hansairexpress.com. If it is a bus parcel with an LR number, that is Hans Travels. If it is an order from hanskart.in, use the store's own order tracking."
               : det.name==="APSRTC Cargo"
               ? "APSRTC Cargo does not publish tracking to third parties. Tap 'Track on courier site' - their page needs the AWB plus the sender's or receiver's mobile number."
               : det.name+" does not publish tracking to third parties. Tap 'Track on courier site' and check the booking in their app.")
