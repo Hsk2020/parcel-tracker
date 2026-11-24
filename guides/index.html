@@ -1,129 +1,1032 @@
 <!DOCTYPE html>
+<!--
+  ============================================================================
+  HSK PARCEL TRACKER - installable mobile app (PWA)
+  ============================================================================
+  An AfterShip-style tracker: add any tracking number, it auto-detects the
+  courier, saves your parcels, and shows a status timeline.
+
+  WORKS OUT OF THE BOX (no backend):
+    - tracks numbers listed in tracking_data.json (published by track_parcels.py)
+    - auto-detects the courier for any number
+    - saves your parcels on the device (localStorage)
+    - hands off to the courier's tracking page for live status
+
+  TURN ON LIVE STATUS FOR ANY NUMBER (optional):
+    1. Deploy worker/live-track-worker.js to Cloudflare Workers (free) with an
+       aggregator API key (Ship24 or TrackingMore free tier).
+    2. Put the worker URL in CONFIG.liveApi below.
+    Then the app fetches real live status for any number.
+
+  GOOGLE ADS: set CONFIG.adSenseClient + CONFIG.adSlots in the script below.
+  ============================================================================
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Parcel Tracking Guides - HSK Parcel Tracker</title>
-<meta name="description" content="Practical guides to tracking parcels in India: courier number formats, status meanings, APSRTC and Cainiao explained.">
-<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
-<link rel="canonical" href="https://hskparcel.in/guides/index.html">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HSK Parcel Tracker</title>
+<meta name="description" content="Track any parcel - Hrudai Store Kart.">
+<meta name="theme-color" content="#0e7c66">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HSK Tracker">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <style>
   :root{
     --brand:#0e7c66; --brand-dark:#0a5c4c; --brand-soft:#e6f4f0;
+    --accent:#f59e0b; --fashion:#db2777; --organic:#16a34a;
     --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --bg:#f2f5f6; --card:#fff;
+    --ok:#15803d; --warn:#b45309; --info:#1d4ed8; --err:#b91c1c;
     --r:16px; --sh:0 1px 3px rgba(16,24,40,.07),0 10px 26px -14px rgba(16,24,40,.22);
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       line-height:1.65;-webkit-font-smoothing:antialiased}
-  header{background:linear-gradient(135deg,var(--brand-dark),var(--brand));color:#fff;padding:22px 20px}
-  header .wrap{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
-  header a.back{color:#fff;text-decoration:none;font-size:14px;opacity:.9;border:1px solid rgba(255,255,255,.35);
-                border-radius:999px;padding:5px 12px}
-  header a.back:hover{opacity:1;background:rgba(255,255,255,.12)}
-  header h1{font-size:19px;margin:0;font-weight:700}
-  header p{margin:2px 0 0;font-size:12.5px;opacity:.85}
-  main{max-width:760px;margin:20px auto 60px;padding:0 16px}
-  .card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:22px 22px 8px;margin-bottom:16px}
-  h2{font-size:16px;margin:22px 0 8px;color:var(--brand-dark)}
-  h2:first-child{margin-top:4px}
-  p{margin:0 0 12px;font-size:14.5px}
-  ul{margin:0 0 14px;padding-left:20px;font-size:14.5px}
-  li{margin-bottom:6px}
-  a{color:var(--brand)}
-  .muted{color:var(--muted);font-size:13px}
-  footer{text-align:center;font-size:12.5px;color:var(--muted);padding:0 16px 40px}
-  footer a{margin:0 6px;text-decoration:none}
-</style>
-<style>  .article{max-width:760px;margin:0 auto;padding:22px 20px 60px}
-  .article h1{font-size:1.55rem;line-height:1.25;margin:0 0 6px}
-  .article .meta{color:var(--muted);font-size:.85rem;margin-bottom:18px}
-  .article h2{font-size:1.12rem;margin:26px 0 8px}
-  .article h3{font-size:1rem;margin:18px 0 6px}
-  .article p,.article li{font-size:.97rem}
-  .article ul,.article ol{padding-left:22px}
-  .article li{margin:5px 0}
-  .cta{display:block;background:var(--brand-soft);border:1px solid #cfe8e0;border-radius:12px;
-       padding:14px 16px;margin:24px 0;text-decoration:none;color:var(--ink)}
-  .cta b{color:var(--brand)}
-  .adbox{margin:26px 0;min-height:90px}
-  .adbox .ad-label{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
-                   color:var(--muted);margin-bottom:6px}
-  .related{margin-top:30px;padding-top:16px;border-top:1px solid var(--line)}
-  .related h2{font-size:1rem;margin:0 0 8px}
-  .related a{display:block;padding:5px 0;color:var(--brand);text-decoration:none}
-  table.fmt{width:100%;border-collapse:collapse;margin:12px 0;font-size:.9rem}
-  table.fmt th,table.fmt td{border:1px solid var(--line);padding:7px 9px;text-align:left}
-  table.fmt th{background:var(--brand-soft)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;
+    padding-bottom:78px; /* room for tab bar */
+  }
+  a{color:inherit}
+  .wrap{max-width:640px;margin:0 auto;padding:0 14px}
+
+  /* app bar */
+  .appbar{
+    position:sticky;top:0;z-index:30;background:linear-gradient(135deg,var(--brand),var(--brand-dark));
+    color:#fff;padding:12px 0;box-shadow:0 2px 10px -4px rgba(0,0,0,.35);
+    padding-top:calc(12px + env(safe-area-inset-top));
+  }
+  .appbar .wrap{display:flex;align-items:center;gap:10px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16.5px;letter-spacing:.2px}
+  .logo img{width:30px;height:30px;border-radius:9px}
+  .logo .sub{display:block;font-size:11px;font-weight:500;opacity:.85}
+  .install-btn{
+    margin-left:auto;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3);
+    padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+  }
+  .install-btn:hover{background:rgba(255,255,255,.28)}
+  .install-btn[hidden]{display:none}
+
+  /* search card */
+  .search{margin:16px 0 8px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--sh);padding:14px}
+  .search h1{margin:0 0 3px;font-size:18px}
+  .search p{margin:0 0 12px;font-size:13px;color:var(--muted)}
+  .field{display:flex;gap:8px;flex-wrap:wrap}
+  .field input, .field select{
+    padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);font-size:16px;
+    font-family:inherit;outline:none;background:#fff;min-width:0;
+  }
+  .field input{flex:1 1 100%;font-weight:600}
+  .field input:focus,.field select:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+  .field select{flex:1 1 58%}
+  .btn{
+    padding:13px 20px;border-radius:12px;border:0;background:var(--brand);color:#fff;font-weight:800;
+    font-size:15px;cursor:pointer;font-family:inherit;flex:1 1 34%;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{background:var(--brand-soft);color:var(--brand-dark)}
+  .note{font-size:12.5px;color:var(--muted);margin:10px 2px 0}
+  .note.warn{color:#92400e}
+
+  /* section head */
+  .sec{display:flex;align-items:center;gap:8px;margin:20px 2px 8px}
+  .sec h2{margin:0;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
+  .sec .pill{margin-left:auto;font-size:12px;color:var(--muted)}
+
+  /* shipment cards */
+  .cards{display:grid;gap:10px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+    box-shadow:var(--sh);display:flex;gap:12px;align-items:center;cursor:pointer;
+  }
+  .card:active{transform:scale(.995)}
+  .card .left{flex:1;min-width:0}
+  .card .num{font-weight:800;font-size:15px;word-break:break-all}
+  .card .meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .card .chev{color:#cbd5e1;font-size:20px;flex:0 0 auto}
+  .empty{
+    background:var(--card);border:1px dashed #cbd5e1;border-radius:14px;padding:28px 18px;text-align:center;
+    color:var(--muted);font-size:14px;
+  }
+  .empty b{color:var(--ink)}
+
+  /* badges */
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;
+    border-radius:999px;border:1px solid transparent;white-space:nowrap}
+  .badge.ok{background:#dcfce7;color:var(--ok);border-color:#bbf7d0}
+  .badge.warn{background:#fef3c7;color:var(--warn);border-color:#fde68a}
+  .badge.info{background:#dbeafe;color:var(--info);border-color:#bfdbfe}
+  .badge.mute{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+  .badge.err{background:#fee2e2;color:var(--err);border-color:#fecaca}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+  /* detail view */
+  .back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--brand-dark);
+    font-weight:700;font-size:14.5px;font-family:inherit;cursor:pointer;padding:14px 2px}
+  .hero{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:16px}
+  .hero .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .hero .num{font-weight:800;font-size:17px;word-break:break-all}
+  .hero .cour{font-size:13px;color:var(--muted)}
+  .hero .upd{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .actions a,.actions button{
+    text-decoration:none;font-size:13.5px;font-weight:700;padding:10px 14px;border-radius:11px;border:0;
+    background:var(--brand-soft);color:var(--brand-dark);font-family:inherit;cursor:pointer;
+  }
+  .actions .danger{background:#fee2e2;color:var(--err)}
+  .timeline{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--sh);padding:6px 16px}
+  .tl{display:flex;gap:14px;padding:12px 0;position:relative}
+  .tl:not(:last-child):before{content:"";position:absolute;left:7px;top:28px;bottom:-6px;width:2px;background:var(--line)}
+  .tl .dot2{width:16px;height:16px;border-radius:50%;flex:0 0 16px;margin-top:3px;background:#fff;border:3px solid var(--brand)}
+  .tl:first-child .dot2{background:var(--brand)}
+  .tl .act{font-weight:600;font-size:14.5px}
+  .tl .sub{font-size:12.5px;color:var(--muted)}
+
+  /* promos */
+  .promo{border-radius:var(--r);padding:20px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--sh);margin-bottom:12px}
+  .promo.fashion{background:linear-gradient(135deg,#db2777,#9d174d)}
+  .promo.organic{background:linear-gradient(135deg,#16a34a,#065f46)}
+  .promo .tag{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:999px}
+  .promo h3{margin:10px 0 5px;font-size:19px}
+  .promo p{margin:0 0 14px;font-size:13.5px;opacity:.95}
+  .promo a{display:inline-block;text-decoration:none;font-weight:800;font-size:14px;background:#fff;padding:10px 16px;border-radius:10px}
+  .promo.fashion a{color:#9d174d}
+  .promo.organic a{color:#065f46}
+
+  /* ad */
+  .ad-slot{margin:20px 0}
+  /* ---- ask panel ---- */
+  #askBtn{position:fixed;right:16px;bottom:78px;z-index:70;border:0;border-radius:999px;
+    background:var(--brand);color:#fff;font:inherit;font-size:13.5px;font-weight:600;
+    padding:11px 16px;box-shadow:0 6px 18px -6px rgba(16,24,40,.5);cursor:pointer;display:none}
+  #askBtn.show{display:block}
+  #askPanel{position:fixed;right:12px;left:12px;bottom:78px;max-width:520px;margin:0 auto;z-index:75;
+    background:#fff;border-radius:16px;box-shadow:0 12px 40px -10px rgba(16,24,40,.45);
+    padding:14px;display:none}
+  #askPanel.show{display:block}
+  #askPanel h3{margin:0 0 2px;font-size:15px;color:var(--brand-dark)}
+  #askPanel .hint{margin:0 0 10px;font-size:12px;color:var(--muted)}
+  #askRow{display:flex;gap:8px}
+  #askInput{flex:1;border:1px solid #d7dee2;border-radius:10px;padding:10px 12px;font:inherit;font-size:14px}
+  #askSend{border:0;border-radius:10px;background:var(--brand);color:#fff;font:inherit;font-weight:600;
+    font-size:13.5px;padding:0 16px;cursor:pointer}
+  #askSend:disabled{opacity:.55;cursor:default}
+  #askOut{margin-top:10px;font-size:13.5px;line-height:1.55;color:#25313a;white-space:pre-wrap}
+  #askOut:empty{display:none}
+  #askClose{position:absolute;top:10px;right:12px;border:0;background:none;font-size:18px;
+    color:var(--muted);cursor:pointer;line-height:1}
+  .editorial{margin-top:26px;border-top:1px solid #e5eaec;padding-top:18px}
+  .editorial h2{font-size:17px;margin:22px 0 8px;color:var(--brand-dark)}
+  .editorial h2:first-child{margin-top:0}
+  .editorial p,.editorial li{font-size:14.5px;line-height:1.65;color:#25313a}
+  .editorial p{margin:0 0 10px}
+  .editorial ul{margin:0 0 12px;padding-left:20px}
+  .editorial li{margin-bottom:5px}
+  .fmt-table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13.5px}
+  .fmt-table th,.fmt-table td{border:1px solid #dde4e7;padding:7px 9px;text-align:left}
+  .fmt-table th{background:#f0f5f3;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#5b6572}
+  .fmt-table td:nth-child(2),.fmt-table td:nth-child(3){font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0 4px}
+  .gcard{display:block;padding:10px 12px;border:1px solid #dde4e7;border-radius:10px;
+    background:#f7fafb;color:var(--brand-dark);text-decoration:none;font-size:13px;font-weight:600}
+  .gcard:hover,.gcard:focus{background:#eaf4f1;border-color:#b9d8d1}
+  .faq h3{font-size:14.5px;margin:16px 0 4px;color:#25313a}
+  .faq p{margin:0 0 8px}
+  .ad-label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#9ca3af;text-align:center;margin-bottom:5px}
+  .ad-ph{border:1.5px dashed #cbd5e1;border-radius:14px;background:repeating-linear-gradient(45deg,#fbfdfe,#fbfdfe 12px,#f3f7f9 12px,#f3f7f9 24px);
+    color:#94a3b8;display:grid;place-items:center;text-align:center;padding:20px;font-size:13px;min-height:96px}
+  .ad-ph b{color:#64748b}
+
+  /* tab bar */
+  .tabbar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tabbar button{
+    flex:1;background:none;border:0;padding:11px 6px 12px;font-family:inherit;font-size:11.5px;font-weight:700;
+    color:#94a3b8;display:grid;gap:3px;justify-items:center;cursor:pointer;
+  }
+  .tabbar button.active{color:var(--brand)}
+  .tabbar svg{width:22px;height:22px}
+  .foot{margin:6px 0 0;padding:18px 16px 88px;text-align:center;font-size:12.5px;
+        color:var(--muted);line-height:1.9}
+  .foot a{color:var(--brand);text-decoration:none;margin:0 5px}
+  .foot a:hover{text-decoration:underline}
+  .newdot{display:inline-block;width:7px;height:7px;border-radius:50%;
+          background:var(--accent);margin-right:6px;vertical-align:middle}
+
+  .topnav{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding:0 12px 8px;max-width:720px;margin:0 auto;scrollbar-width:none}
+  .topnav::-webkit-scrollbar{display:none}
+  .topnav a{flex:0 0 auto;font-size:12.5px;font-weight:600;color:#4b5563;text-decoration:none;
+    padding:6px 11px;border-radius:999px;background:#eef2f4;white-space:nowrap}
+  .topnav a.on{background:var(--brand);color:#fff}
+  .hidden{display:none !important}
+  .toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#111827;color:#fff;
+    padding:11px 16px;border-radius:12px;font-size:13.5px;z-index:60;opacity:0;transition:.25s;pointer-events:none;
+    max-width:88vw;text-align:center;
+  }
+  .toast.show{opacity:1}
 </style>
 <meta name="google-adsense-account" content="ca-pub-2396239883686272">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2396239883686272"
-        crossorigin="anonymous"></script>
-<meta property="og:type" content="article">
-<meta property="og:title" content="Parcel Tracking Guides">
-<meta property="og:description" content="Practical guides to tracking parcels in India: courier number formats, status meanings, APSRTC and Cainiao explained.">
-<meta property="og:url" content="https://hskparcel.in/guides/index.html">
+        crossorigin="anonymous" data-adsense="1"></script>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="HSK Parcel Tracker">
+<meta property="og:title" content="HSK Parcel Tracker - track any parcel">
+<meta property="og:description" content="Enter any tracking number and see live courier scans. Detects Delhivery, Ekart, XpressBees, Blue Dart, DTDC, Shadowfax, India Post, Cainiao and more.">
+<meta property="og:url" content="https://hskparcel.in/">
 <meta property="og:image" content="https://hskparcel.in/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HSK Parcel Tracker">
+<meta name="twitter:description" content="Track any parcel - live courier scans, courier auto-detected.">
+<meta name="twitter:image" content="https://hskparcel.in/og-image.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication",
+"name":"HSK Parcel Tracker","url":"https://hskparcel.in/",
+"applicationCategory":"UtilitiesApplication","operatingSystem":"Any",
+"description":"Track parcels from Indian and international couriers with live scans.",
+"offers":{"@type":"Offer","price":"0","priceCurrency":"INR"},
+"publisher":{"@type":"Organization","name":"Hrudai Store Kart","url":"https://hsk2020.in"}}
+</script>
+<link rel="canonical" href="https://hskparcel.in/">
 </head>
 <body>
-<header>
+
+<header class="appbar">
   <div class="wrap">
-    <a class="back" href="../index.html">&larr; Tracker</a>
-    <div><h1 style="font-size:1.15rem;margin:0">HSK Parcel Tracker</h1>
-      <div style="font-size:.8rem;opacity:.85">Guides</div></div>
+    <div class="logo">
+      <img src="icon-192.png" alt="">
+      <span>HSK Parcel Tracker<span class="sub">Hrudai Store Kart</span></span>
+    </div>
+    <button class="install-btn" id="installBtn" hidden>Install</button>
   </div>
 </header>
 
-<main class="article">
-  <h1>Parcel Tracking Guides</h1>
-  <div class="meta">Updated 9 November 2026 &middot; Hrudai Store Kart</div>
-  <p>Plain-language guides to tracking parcels in India - what the numbers look like, what
-  each status means, and which parcels genuinely cannot be tracked by any third party.</p>
-    <a class="cta" href="how-to-track-any-parcel-india.html"><b>How to Track Any Parcel in India</b><br>A practical guide to tracking parcels from Delhivery, Ekart, DTDC, XpressBees, India Post and more - where to find your number and what to do when nothing shows.</a>
-    <a class="cta" href="delhivery-tracking-guide.html"><b>Delhivery Tracking: Find Your AWB and Read the Status</b><br>How Delhivery tracking numbers work, where to find yours, what the scans mean and why a Delhivery parcel sometimes shows nothing for days.</a>
-    <a class="cta" href="dtdc-tracking-guide.html"><b>DTDC Tracking: Number Formats and What Each Scan Means</b><br>DTDC tracking numbers can be hard to recognise. Here is how they are built, how to read a DTDC scan, and why DTDC timelines sometimes look duplicated.</a>
-    <a class="cta" href="ekart-tracking-guide.html"><b>Ekart Tracking: Reading a Flipkart Shipment Number</b><br>Ekart numbers start with FMPP, FMP, FMPC, DSPC or SHCP. Here is what those prefixes mean and how to follow an Ekart parcel.</a>
-    <a class="cta" href="apsrtc-cargo-tracking-guide.html"><b>APSRTC Cargo Tracking: Why It Asks for a Mobile Number</b><br>APSRTC Cargo does not publish tracking to third parties, and its own page requires the sender's or receiver's mobile number. Here is how to check a consignment.</a>
-    <a class="cta" href="cainiao-aliexpress-tracking-guide.html"><b>Tracking a Cainiao or AliExpress Parcel to India</b><br>ALS and LP numbers belong to Cainiao. Here is what the prefixes mean, how to follow a cross-border parcel into India, and why 'Pre-A' is not a problem.</a>
-    <a class="cta" href="what-tracking-status-means.html"><b>What Each Tracking Status Actually Means</b><br>Pending, In Transit, Out for Delivery, Exception, RTO - a plain-language explanation of every courier status and what you should do about it.</a>
-    <a class="cta" href="vrl-logistics-tracking-guide.html"><b>VRL Logistics Tracking: Finding and Using Your LR Number</b><br>VRL tracks consignments by LR number, not by mobile or name. Here is where to find the LR, how to read a VRL status, and why a Courier No. will not work.</a>
-    <a class="cta" href="india-post-speed-post-tracking-guide.html"><b>India Post Speed Post Tracking: Reading the 13-Character Number</b><br>Speed Post consignment numbers follow a fixed 13-character pattern. Here is how to read the prefix, where to track it, and what each India Post status means.</a>
-    <a class="cta" href="bluedart-tracking-guide.html"><b>Blue Dart Tracking: Waybill Numbers and What They Show</b><br>Blue Dart uses an 11-digit waybill number. How to find it, where to track it, and what the scans tell you about a premium express consignment.</a>
-    <a class="cta" href="shadowfax-tracking-guide.html"><b>Shadowfax Tracking: AWB Format and What the Scans Mean</b><br>Shadowfax AWBs start with SF. How to read one, where to track it, and why the timeline behaves differently from a traditional courier.</a>
-    <a class="cta" href="kesari-courier-tracking-guide.html"><b>Kesari Courier Tracking: AWB, Docket and GC Numbers</b><br>Kesari Courier runs a large branch network from Surat. Where to track, what your receipt number is called, and why a fresh booking shows nothing yet.</a>
-    <a class="cta" href="hans-air-express-tracking-guide.html"><b>Hans Courier Tracking: Which Hans Do You Have?</b><br>Three different Indian companies use the name Hans. Here is how to tell which one has your parcel, and where to track each.</a>
+<nav class="topnav" aria-label="Site">
+  <a href="/" class="on">Tracker</a>
+  <a href="guides/index.html">Courier guides</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+</nav>
 
-  <!-- Ad unit removed while the site is not AdSense-approved: an empty
-       "Advertisement" box is a policy flag and looks unfinished to readers.
-       Re-add the <ins> block here once approval is granted. -->
+<main class="wrap">
 
-  <div class="related">
-    <h2>More guides</h2>
-      <a href="how-to-track-any-parcel-india.html">How to Track Any Parcel in India</a>
-      <a href="delhivery-tracking-guide.html">Delhivery Tracking: Find Your AWB and Read the Status</a>
-      <a href="dtdc-tracking-guide.html">DTDC Tracking: Number Formats and What Each Scan Means</a>
-      <a href="ekart-tracking-guide.html">Ekart Tracking: Reading a Flipkart Shipment Number</a>
-      <a href="apsrtc-cargo-tracking-guide.html">APSRTC Cargo Tracking: Why It Asks for a Mobile Number</a>
-      <a href="cainiao-aliexpress-tracking-guide.html">Tracking a Cainiao or AliExpress Parcel to India</a>
-      <a href="what-tracking-status-means.html">What Each Tracking Status Actually Means</a>
-      <a href="vrl-logistics-tracking-guide.html">VRL Logistics Tracking: Finding and Using Your LR Number</a>
-      <a href="india-post-speed-post-tracking-guide.html">India Post Speed Post Tracking: Reading the 13-Character Number</a>
-      <a href="bluedart-tracking-guide.html">Blue Dart Tracking: Waybill Numbers and What They Show</a>
-      <a href="shadowfax-tracking-guide.html">Shadowfax Tracking: AWB Format and What the Scans Mean</a>
-      <a href="kesari-courier-tracking-guide.html">Kesari Courier Tracking: AWB, Docket and GC Numbers</a>
-      <a href="hans-air-express-tracking-guide.html">Hans Courier Tracking: Which Hans Do You Have?</a>
-  </div>
+  <!-- ===== TAB: parcels ===== -->
+  <section id="tab-parcels">
+    <div class="search">
+      <h1>Track a parcel</h1>
+      <p>Add any tracking number. We detect the courier for you.</p>
+      <form class="field" id="addForm" autocomplete="off">
+        <input id="numInput" type="text" inputmode="text" placeholder="Enter tracking number" aria-label="Tracking number">
+        <select id="courierSelect" aria-label="Courier"></select>
+        <input id="mobileInput" type="tel" inputmode="numeric" maxlength="10"
+               placeholder="Sender/receiver mobile (APSRTC)" aria-label="Mobile number" hidden>
+        <button class="btn" type="submit">Track</button>
+      </form>
+      <p class="note" id="detectNote"></p>
+    </div>
+
+    <div class="sec"><h2>My parcels</h2><span class="pill" id="countPill"></span></div>
+    <div class="cards" id="list"></div>
+
+    <!-- ===== editorial content (homepage depth) ===== -->
+    <div class="editorial">
+      <h2>How parcel tracking works in India</h2>
+      <p>Every parcel booked with an Indian courier is given a number at the counter or on the
+      seller's dashboard. Delhivery and Shadowfax call it an <b>AWB</b>; DTDC and VRL call it a
+      <b>consignment</b> or <b>LR number</b>; Gati calls it a <b>docket</b>. They all mean the same
+      thing: a reference the courier scans at each stage of the journey, from pickup to delivery.</p>
+      <p>That number is the only thing needed to see where a parcel is. This page sends it to the
+      courier's own system and shows what comes back. Nothing is guessed - if a courier has not
+      scanned a parcel yet, no amount of refreshing will make a status appear.</p>
+
+      <h2>Tracking number formats we recognise</h2>
+      <p>Couriers use different shapes, which is how the courier is detected automatically:</p>
+      <table class="fmt-table">
+        <tr><th>Courier</th><th>Typical format</th><th>Example</th></tr>
+        <tr><td>Delhivery</td><td>12-14 digits</td><td>19041975036623</td></tr>
+        <tr><td>DTDC</td><td>D, V, X or Z + 7-11 digits</td><td>D3504296090</td></tr>
+        <tr><td>Ekart</td><td>FMPP, FMP, DSPC or SHCP + digits</td><td>FMPP4400829920</td></tr>
+        <tr><td>Shadowfax</td><td>SF + 8 or more digits</td><td>SF44302070897</td></tr>
+        <tr><td>India Post / Speed Post</td><td>Two letters + 9 digits + IN</td><td>EE123456789IN</td></tr>
+        <tr><td>Blue Dart</td><td>11 digits</td><td>12345678901</td></tr>
+        <tr><td>VRL Logistics</td><td>LR number, about 10 digits</td><td>1105447592</td></tr>
+        <tr><td>Gati (Allcargo)</td><td>Docket, 9-10 digits</td><td>428343662</td></tr>
+        <tr><td>Cainiao / AliExpress</td><td>ALS or LP + digits</td><td>LP00123456789</td></tr>
+      </table>
+      <p>If a number is not recognised, pick the courier from the dropdown and search again.</p>
+
+      <h2>What each status actually means</h2>
+      <ul class="glossary">
+        <li><b>Manifested / Booked</b> - the courier has accepted the parcel. Nothing has moved yet.</li>
+        <li><b>Picked up</b> - collected from the sender and on its way to a hub.</li>
+        <li><b>In transit</b> - moving between hubs. Long gaps are normal on road routes.</li>
+        <li><b>Out for delivery</b> - on a vehicle for delivery today.</li>
+        <li><b>Delivery attempted (NDR)</b> - the agent could not hand it over. Usually a wrong
+        address or nobody available. Re-attempt needs action from you or the sender.</li>
+        <li><b>Delivered</b> - a handover was recorded, with a signature, OTP or named recipient.</li>
+        <li><b>RTO</b> - returning to the sender, usually after failed attempts or a refusal.</li>
+      </ul>
+
+      <h2>Frequently asked questions</h2>
+      <div class="faq">
+        <h3>Why has my tracking not updated for two days?</h3>
+        <p>Most Indian couriers scan at hubs, not continuously. A parcel on a long road leg can show
+        nothing for a day or more. Five working days without a scan is the point at which it is worth
+        contacting the courier.</p>
+
+        <h3>Why does this page show a different status from the courier's own site?</h3>
+        <p>Data is fetched when you open the page, and results are cached for ten minutes. The
+        courier's own site is always the freshest record. If the two disagree, trust the courier.</p>
+
+        <h3>Can I track an Amazon order ID like 404-5350832-5578719?</h3>
+        <p>No. That is Amazon's order number, not a courier number, and no third party can resolve it.
+        Open Amazon, go to Your Orders, and look for the courier's AWB - then enter that here.</p>
+
+        <h3>What if my courier is not listed?</h3>
+        <p>Pick the closest match from the dropdown, or use the courier's own tracking page. Some
+        couriers - APSRTC Cargo, Porter and Rapido - publish no tracking data at all, so this page
+        links you straight to their site instead.</p>
+
+        <h3>Do I need to save my parcels?</h3>
+        <p>No, but it helps. Saved parcels stay in this browser only, and are re-checked when you open
+        the page so you can see which ones moved since your last visit. Nothing is uploaded or shared.</p>
+
+        <h3>Where can I read more?</h3>
+        <p>There are detailed guides for
+        <a href="guides/delhivery-tracking-guide.html">Delhivery</a>,
+        <a href="guides/dtdc-tracking-guide.html">DTDC</a>,
+        <a href="guides/ekart-tracking-guide.html">Ekart</a>,
+        <a href="guides/vrl-logistics-tracking-guide.html">VRL</a> and
+        <a href="guides/what-tracking-status-means.html">every tracking status</a> in the
+        <a href="guides/index.html">guides section</a>.</p>
+      
+      <h2>Popular courier tracking guides</h2>
+      <p>Each guide explains that courier's number format, where to track it, and what the
+      statuses actually mean. If your courier is not listed, the
+      <a href="guides/index.html">full list of guides</a> covers all of them.</p>
+      <div class="ggrid">
+        <a class="gcard" href="guides/delhivery-tracking-guide.html">Delhivery</a>
+        <a class="gcard" href="guides/dtdc-tracking-guide.html">DTDC</a>
+        <a class="gcard" href="guides/ekart-tracking-guide.html">Ekart</a>
+        <a class="gcard" href="guides/shadowfax-tracking-guide.html">Shadowfax</a>
+        <a class="gcard" href="guides/india-post-speed-post-tracking-guide.html">India Post</a>
+        <a class="gcard" href="guides/bluedart-tracking-guide.html">Blue Dart</a>
+        <a class="gcard" href="guides/vrl-logistics-tracking-guide.html">VRL Logistics</a>
+        <a class="gcard" href="guides/kesari-courier-tracking-guide.html">Kesari</a>
+        <a class="gcard" href="guides/hans-air-express-tracking-guide.html">Hans</a>
+        <a class="gcard" href="guides/cainiao-aliexpress-tracking-guide.html">AliExpress</a>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TAB: shop ===== -->
+  <section id="tab-shop" class="hidden">
+    <div class="sec"><h2>Our stores</h2></div>
+    <div id="promos"></div>
+  </section>
+
+  <!-- ===== view: detail ===== -->
+  <section id="view-detail" class="hidden">
+    <button class="back" id="backBtn">&#8592; Back</button>
+    <div id="detail"></div>
+  </section>
+
 </main>
 
-<footer style="text-align:center;color:var(--muted);font-size:.85rem;padding:0 20px 40px">
-  <div><a href="../index.html">Tracker</a> &middot; <a href="../about.html">About</a> &middot;
-       <a href="../privacy.html">Privacy Policy</a> &middot;
-       <a href="../terms.html">Terms</a> &middot;
-       <a href="../contact.html">Contact</a> &middot;
-       <a href="index.html">All guides</a></div>
-  <div style="margin-top:8px">hsk2020.in &middot; hsk.co.in</div>
+<footer class="foot">
+  <div><a href="/">Tracker</a> &middot;
+    <a href="guides/index.html">Courier guides</a> &middot;
+    <a href="about.html">About</a> &middot;
+    <a href="contact.html">Contact</a> &middot;
+    <a href="privacy.html">Privacy Policy</a> &middot;
+    <a href="terms.html">Terms of Use</a> &middot;
+    <a href="https://wa.me/918978468766?text=Feedback%20on%20the%20parcel%20tracker" target="_blank" rel="noopener">Give feedback</a></div>
+  <div><a href="https://hsk2020.in" target="_blank" rel="noopener">hsk2020.in</a> &middot;
+    <a href="https://hsk.co.in" target="_blank" rel="noopener">hsk.co.in</a></div>
   <div>&copy; 2026 Hrudai Store Kart</div>
 </footer>
+
+<button id="askBtn" type="button">Ask about a parcel</button>
+<div id="askPanel" role="dialog" aria-label="Parcel assistant">
+  <button id="askClose" type="button" aria-label="Close">&times;</button>
+  <h3>Ask about your parcel</h3>
+  <p class="hint">English, తెలుగు or हिन्दी — include the tracking number.</p>
+  <div id="askRow">
+    <input id="askInput" type="text" placeholder="Where is SF45243078605?" maxlength="300">
+    <button id="askSend" type="button">Ask</button>
+  </div>
+  <div id="askOut"></div>
+</div>
+
+<nav class="tabbar">
+  <button data-tab="parcels" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"></path></svg>
+    Parcels
+  </button>
+  <button data-tab="shop">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18M16 10a4 4 0 0 1-8 0"></path></svg>
+    Shop
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ CONFIG ============================ */
+const CONFIG = {
+  dataFile: "tracking_data.json",   // published parcel list from track_parcels.py
+
+  // ---- LIVE STATUS (optional) ----
+  // Paste the URL of your live-status endpoint here. Either works:
+  //   Cloudflare Worker:  "https://hsk-track.<you>.workers.dev"
+  //   Firebase Function:  "https://asia-south1-<project>.cloudfunctions.net/track"
+  // When set, the app fetches real live status for ANY number.
+  liveApi: "https://track-hsk-co-in.cloud.run",
+
+  // ---- GOOGLE ADSENSE ----
+  // Paste your AdSense publisher ID (ca-pub-...). Auto ads start working with
+  // just this. Slot IDs are optional - add them for fixed, hand-placed units.
+  adSenseClient: "ca-pub-2396239883686272",
+  adSlots: { top: "", bottom: "" },
+
+  stores: [
+    { cls:"fashion", tag:"Fashion & Accessories", name:"Hrudai Store",
+      desc:"Premium clothing, jewellery and accessories - trendy picks and more.",
+      url:"https://hsk2020.in", cta:"Shop hsk2020.in" },
+    { cls:"organic", tag:"Organic Products", name:"HSK Organic",
+      desc:"Premium organic products delivered to your door.",
+      url:"https://hsk.co.in", cta:"Shop hsk.co.in" }
+  ]
+};
+
+/* ==================== courier detection (best effort) ==================== */
+const CARRIERS = [
+  // --- Amazon (special: neither form is a courier tracking number) ---
+  { name:"Amazon",                  re:/^TB[ACM]\d{10,}$/i,
+    url:"https://track.amazon.in/tracking/{tn}?trackingId={tn}" },
+  { name:"Amazon order ID",         re:/^\d{3}-\d{7}-\d{7}$/,
+    url:"https://www.amazon.in/gp/css/order-history" },
+
+  // --- Prefix-based couriers (checked before generic numbers) ---
+  { name:"Ekart",                   re:/^(FMPC|FMPP|DSPC|SHCP|FMP)\w*\d{6,}$/i,
+    url:"https://ekartlogistics.com/track/{tn}" },
+  { name:"XpressBees",              re:/^(XB|XP)\d{6,}$/i,
+    url:"https://www.xpressbees.com/shipment/tracking?awbNo={tn}" },
+  { name:"DTDC",                    re:/^(DTDC\w+|[DVXZ]\d{7,11})$/i,
+    url:"https://www.dtdc.in/tracking/tracking_results.asp" },
+  { name:"Valmo (Meesho)",          re:/^VL[LR]?\d{6,}$/i,
+    url:"" },
+  { name:"Shadowfax",               re:/^(SF|SFX)\d{6,}[A-Z]{0,3}$/i,
+    url:"https://track.shadowfax.in/track?order=new&trackingId={tn}" },
+  { name:"Delhivery",               re:/^DL\d{6,}$/i,
+    url:"https://www.delhivery.com/track/package/{tn}" },
+  { name:"Blue Dart",               re:/^BD\d{6,}$/i,
+    url:"https://www.bluedart.com/tracking" },
+  { name:"Cainiao (AliExpress)",    re:/^(ALS|LP)\d{8,}[A-Z0-9]*$/i,
+    url:"https://global.cainiao.com/detail.htm?mailNoList={tn}" },
+  { name:"UPS",                     re:/^(1Z[0-9A-Z]{16}|T\d{10})$/i,
+    url:"https://www.ups.com/track?loc=en_US&tracknum={tn}" },
+  { name:"India Post / Speed Post", re:/^[A-Z]{2}\d{9}(IN|[A-Z]{2})$/i,
+    url:"https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx" },
+
+  // --- Services with no third-party tracking API: selectable, hand-off only ---
+  { name:"Kesari Courier",          re:/$^/,
+    url:"https://www.kesaricourier.com/" },
+  { name:"Hans Air Express",        re:/$^/,
+    url:"https://hansairexpress.com/" },
+  { name:"Gati (Allcargo)",         re:/$^/,
+    url:"https://www.gati.com/track-by-docket/" },
+  { name:"VRL Logistics",           re:/$^/,
+    url:"https://www.vrlgroup.in/Tracking/TrackShipment" },
+  { name:"APSRTC Cargo",            re:/$^/,
+    url:"https://cargo.apsrtconline.in/track" },
+  { name:"Porter",                  re:/$^/,
+    url:"https://porter.in/" },
+  { name:"Rapido",                  re:/$^/,
+    url:"https://www.rapido.bike/" },
+
+  // --- Generic numeric: matches several couriers, so treat as a best guess ---
+  { name:"XpressBees",              re:/^\d{15}$/,
+    url:"https://www.xpressbees.com/shipment/tracking?awbNo={tn}" },
+  { name:"Delhivery",               re:/^\d{11,14}$/,
+    url:"https://www.delhivery.com/track/package/{tn}" },
+  { name:"Blue Dart",               re:/^\d{9,10}$/,
+    url:"https://www.bluedart.com/tracking" }
+];
+// TrackingMore courier codes, so the function does not have to guess from the
+// number. Ambiguous formats (e.g. 15-digit XpressBees) otherwise match the
+// wrong carrier entirely.
+const TM_CODES = {
+  "Amazon":"amazon", "Shadowfax":"shadowfax", "UPS":"ups",
+  "India Post / Speed Post":"india-post", "Delhivery":"delhivery",
+  "Ekart":"ekart", "DTDC":"dtdc", "Blue Dart":"bluedart",
+  "XpressBees":"xpressbees", "Cainiao (AliExpress)":"cainiao",
+  "VRL Logistics":"vrl", "Gati (Allcargo)":"gati-kwe",
+  "Valmo (Meesho)":"", "Amazon order ID":""
+};
+
+function detectCarrier(num){
+  const n=(num||"").replace(/\s+/g,"").trim();
+  if(!n) return null;
+  for(const c of CARRIERS){ if(c.re.test(n)) return c; }
+  return null;
+}
+function courierUrl(name, num){
+  const c=CARRIERS.find(x=>x.name===name);
+  if(c && c.url) return c.url.includes("{tn}") ? c.url.split("{tn}").join(encodeURIComponent(num)) : c.url;
+  // No known tracking URL for this courier - fall back to a search so there's always a way through.
+  return "https://www.google.com/search?q=" + encodeURIComponent((name?name+" ":"") + "track " + num);
+}
+
+/* ============================ state ============================ */
+const STORE_KEY="hsk_tracked_v1";
+let PUBLISHED={parcels:[]};
+let saved=[];              // array of parcel objects
+
+function loadSaved(){ try{ saved=JSON.parse(localStorage.getItem(STORE_KEY)||"[]"); }catch(e){ saved=[]; } }
+function persist(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(saved)); }catch(e){} }
+
+function statusClass(p){
+  if(p.error) return "err";
+  const s=(p.status||"").toLowerCase();
+  if(p.delivered==="YES"||(s.includes("deliver")&&!s.includes("out for"))) return "ok";
+  if(s.includes("out for")) return "info";
+  if(s.includes("transit")||s.includes("picked")||s.includes("arriv")||s.includes("manifest")) return "warn";
+  return "mute";
+}
+const esc=v=>String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
+
+/* ============================ data load ============================ */
+async function loadPublished(){
+  try{
+    const r=await fetch(CONFIG.dataFile,{cache:"no-store"});
+    if(r.ok){ const j=await r.json(); if(j&&Array.isArray(j.parcels)) PUBLISHED=j; }
+  }catch(e){}
+}
+
+/* ============================ tracking ============================ */
+async function lookupLive(num, det){
+  if(!CONFIG.liveApi) return null;
+  try{
+    const url=new URL(CONFIG.liveApi);
+    url.searchParams.set("tracking_number", num);
+    const code = det && TM_CODES[det.name];
+    if(code) url.searchParams.set("courier_code", code);
+    const r=await fetch(url.toString(),{cache:"no-store"});
+    if(r.status===429){ toast("Too many searches - wait a minute and try again"); return {__failed:"rate"}; }
+    if(r.status===503){ toast("Live lookup is paused for today - open the courier's own page"); return {__failed:"paused"}; }
+    if(r.status===404) return null;               // the courier genuinely has no record
+    if(!r.ok) return {__failed:"http"+r.status};  // provider or server problem
+    const j=await r.json();
+    if(j && (j.status||j.courier)) return {
+      number:num, courier:j.courier||"", status:j.status||"", delivered:j.delivered?"YES":"",
+      lastLocation:j.last_location||"", lastUpdate:j.last_update||"",
+      eta:j.eta||"", trackUrl:j.track_url||"", events:j.events||[], source:"live"
+    };
+  }catch(e){ return {__failed:"network"}; }   // offline, CORS, timeout
+  return null;
+}
+
+async function trackNumber(numRaw, courierOverride){
+  const num=(numRaw||"").replace(/\s+/g,"").trim().toUpperCase();
+  if(!num){ toast("Enter a tracking number"); return; }
+
+  const det = courierOverride && courierOverride!=="Auto-detect"
+      ? CARRIERS.find(c=>c.name===courierOverride)
+      : detectCarrier(num);
+
+  // APSRTC Cargo gates its tracking page behind a mobile number.
+  const mobEl = document.getElementById("mobileInput");
+  const mobile = (mobEl && mobEl.value || "").replace(/\D/g, "");
+  if(det && det.name === "APSRTC Cargo"){
+    if(!/^[6-9]\d{9}$/.test(mobile)){
+      toast("APSRTC needs a 10-digit sender or receiver mobile number");
+      return;
+    }
+  }
+
+  // 1) published list
+  const pub = PUBLISHED.parcels.find(p=>(p.tracking_number||"").toUpperCase()===num);
+  let parcel;
+  if(pub){
+    parcel={ number:num, courier:pub.courier||(det&&det.name)||"", status:pub.status||"",
+      delivered:pub.delivered||"", lastLocation:pub.last_location||"", lastUpdate:pub.last_update||"",
+      trackUrl:pub.track_url||courierUrl((det&&det.name)||pub.courier,num), events:pub.events||[], source:"published" };
+  } else {
+    // 2) live API (if configured)
+    const live = await lookupLive(num, det);
+    if(live && !live.__failed){
+      parcel=live;
+      if(!parcel.courier && det) parcel.courier=det.name;
+    } else {
+      const checkFailed = !!(live && live.__failed);
+      // 3) manual hand-off
+      const isTBA=/^TBA\d{10,}$/i.test(num);
+      const isAmzOrder=/^\d{3}-\d{7}-\d{7}$/.test(num);
+      const isStoreOrder=/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(num);
+      const handoffOnly=["APSRTC Cargo","Porter","Rapido","VRL Logistics","Gati (Allcargo)","Kesari Courier","Hans Air Express"].includes((det&&det.name)||"");
+      parcel={ number:num, courier:(det&&det.name)||"", status:checkFailed?"Couldn't check":"Not tracked yet",
+        delivered:"", lastLocation:"", lastUpdate:"",
+        trackUrl:courierUrl((det&&det.name)||"",num), events:[], source:"manual",
+        mobile: (det && det.name === "APSRTC Cargo") ? mobile : "",
+        note: checkFailed
+          ? "We could not reach the tracking service just now, so this is not a status. Your parcel is not lost - the lookup simply failed. Tap Track again in a moment, or open the courier site. If it keeps failing, the number may not be with that courier."
+          : isTBA
+          ? "Amazon Logistics (TBA) numbers can only be tracked inside your Amazon account - open Amazon, go to Your Orders, then Track Package. If Amazon handed the parcel to a partner courier (Blue Dart, Shadowfax, Delhivery, India Post), enter that courier's AWB here for live tracking."
+          : isAmzOrder
+          ? "This is an Amazon order ID, not a courier tracking number. Open Amazon, go to Your Orders, then Track Package to see the actual courier AWB, and enter that here."
+          : handoffOnly
+          ? (det.name==="Gati (Allcargo)"
+              ? "No live scans came back for this docket. Tap 'Track on courier site' and enter the docket number from the consignment note - Gati shows old consignments on gatikwe.com rather than gati.com."
+              : det.name==="VRL Logistics"
+              ? "No live scans came back for this LR number. VRL coverage through tracking providers is partial, so tap 'Track on courier site' and check the LR number (Lorry Receipt) on VRL's own page - it accepts the LR number, not the Courier No."
+              : det.name==="Kesari Courier"
+              ? "Kesari publishes tracking on its own site only. Tap 'Track on courier site' and enter your AWB, docket or GC number at kesaricourier.com - numbers are alphanumeric, usually 10-15 characters, and records take a few hours to appear after pickup."
+              : det.name==="Hans Air Express"
+              ? "Three different companies use the name Hans. If this is a courier or parcel, track it at hansairexpress.com. If it is a bus parcel with an LR number, that is Hans Travels. If it is an order from hanskart.in, use the store's own order tracking."
+              : det.name==="APSRTC Cargo"
+              ? "APSRTC Cargo does not publish tracking to third parties. Tap 'Track on courier site' - their page needs the AWB plus the sender's or receiver's mobile number."
+              : det.name+" does not publish tracking to third parties. Tap 'Track on courier site' and check the booking in their app.")
+          : isStoreOrder
+          ? "This looks like a store order ID, not a courier tracking number. Open the seller's website or app and use their Track Order page (usually the order ID plus your registered email or phone). When the parcel ships, the shipping email carries the courier AWB - enter that here for live tracking."
+          : "No scans found yet. Most parcels only appear 12-24 hours after dispatch, once the carrier scans them at its hub. Try again later, or open the courier's own page. If the courier name looks wrong, pick the right one from the dropdown and search again." };
+    }
+  }
+  parcel.addedAt=Date.now();
+  const i=saved.findIndex(p=>p.number===num);
+  if(i>=0) saved[i]=parcel; else saved.unshift(parcel);
+  persist(); renderList(); showDetail(num);
+  if(parcel.source==="manual") toast("Added - tap Track on courier site for live status");
+}
+
+/* ============================ render ============================ */
+/* Re-check saved parcels in the background and flag the ones that moved.
+   Runs at most once per 15 minutes per parcel, capped at 8 parcels a visit so
+   it never burns through the provider's monthly allowance. */
+async function refreshSaved(){
+  const stale = saved.filter(p => {
+    if(!p.number) return false;
+    if(/^(OD|ORD|ORDER)[A-Z0-9]{8,}$/i.test(p.number)) return false;   // store order ID
+    if(/^\d{3}-\d{7}-\d{7}$/.test(p.number)) return false;            // Amazon order ID
+    return !p.checkedAt || (Date.now() - p.checkedAt) > 15*60*1000;
+  }).slice(0, 8);
+  if(!stale.length) return;
+
+  let changed = 0;
+  for(const p of stale){
+    const det = p.courier ? { name: p.courier } : detectCarrier(p.number);
+    let live = null;
+    try { live = await lookupLive(p.number, det); } catch(e) {}
+    p.checkedAt = Date.now();
+    if(live){
+      if(p.status && live.status && p.status !== live.status){ p.updatedFlag = true; changed++; }
+      Object.assign(p, live);
+    }
+  }
+  persist(); renderList();
+  if(changed) toast(changed + (changed > 1 ? " parcels" : " parcel") + " updated");
+}
+
+/* Deep link: /?tracking_number=FMPP4400829920&courier=ekart opens on that parcel. */
+function deepLinkParams(){
+  const q = new URLSearchParams(location.search);
+  const num = (q.get("tracking_number") || q.get("tn") || q.get("awb") || q.get("number") || "").trim();
+  const courier = (q.get("courier") || q.get("courier_code") || "").trim();
+  return { num, courier };
+}
+
+/* Build a shareable link for one parcel. */
+function parcelLink(p){
+  const base = location.origin + location.pathname;
+  const q = new URLSearchParams({ tracking_number: p.number });
+  const code = TM_CODES[p.courier] ||
+    (Object.values(TM_CODES).includes(String(p.courier||"").toLowerCase()) ? String(p.courier).toLowerCase() : "");
+  if(code) q.set("courier", code);
+  return base + "?" + q.toString();
+}
+
+function renderList(){
+  const el=document.getElementById("list");
+  document.getElementById("countPill").textContent = saved.length ? saved.length+" saved" : "";
+  if(!saved.length){
+    el.innerHTML=`<div class="empty"><b>No parcels yet.</b><br>Add a tracking number above to start.</div>`;
+    return;
+  }
+  el.innerHTML=saved.map(p=>{
+    const cls=statusClass(p);
+    const st=p.error?"Unavailable":(p.status||"Added");
+    return `<div class="card" data-num="${esc(p.number)}">
+      <div class="left">
+        <div class="num">${esc(p.number)}</div>
+        <div class="meta">${p.updatedFlag?'<span class="newdot" title="Updated"></span>':''}${esc(courierLabel(p.courier)||"Courier not detected")}${p.lastUpdate?" &middot; "+esc(fmtWhen(p.lastUpdate)):""}</div>
+      </div>
+      <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
+      <span class="chev">&#8250;</span>
+    </div>`;
+  }).join("");
+}
+
+/* Providers return slugs like "ups"; show the name a customer recognises. */
+const COURIER_LABELS = {
+  "ups":"UPS", "fedex":"FedEx", "dhl":"DHL", "aramex":"Aramex",
+  "amazon":"Amazon", "delhivery":"Delhivery", "ekart":"Ekart",
+  "xpressbees":"XpressBees", "bluedart":"Blue Dart", "dtdc":"DTDC",
+  "shadowfax":"Shadowfax", "india-post":"India Post",
+  "cainiao":"Cainiao (AliExpress)", "valmo":"Valmo (Meesho)",
+  "ecom-express":"Ecom Express",
+};
+function courierLabel(v){
+  const raw=String(v||"").trim();
+  if(!raw) return "";
+  const slug=raw.toLowerCase().replace(/\s+/g,"-");
+  if(COURIER_LABELS[slug]) return COURIER_LABELS[slug];
+  const hit=CARRIERS.find(c=>c.name.toLowerCase()===raw.toLowerCase());
+  if(hit) return hit.name;
+  return raw.replace(/\b[a-z]/g, m=>m.toUpperCase());
+}
+
+/* Turn "2026-11-01T16:20:23+00:00" into "01 Nov 2026, 9:50 pm". */
+function fmtWhen(v){
+  const raw=String(v||"").trim();
+  if(!raw) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){
+    const d=new Date(raw+"T00:00:00");
+    return isNaN(d) ? raw : d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+  }
+  const d=new Date(raw);
+  if(isNaN(d)) return raw;
+  return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",
+                                  hour:"numeric",minute:"2-digit"});
+}
+
+function showDetail(num){
+  const p=saved.find(x=>x.number===num);
+  if(!p) return;
+  if(p.updatedFlag){ p.updatedFlag=false; persist(); }
+  const cls=statusClass(p);
+  const st=p.error?"Status unavailable":(p.status||"Added");
+  const events=(p.events||[]).slice().reverse();
+  document.getElementById("detail").innerHTML=`
+    <div class="hero">
+      <div class="top">
+        <div style="flex:1;min-width:0">
+          <div class="num">${esc(p.number)}</div>
+          <div class="cour">${esc(courierLabel(p.courier)||"Courier not detected")}</div>
+        </div>
+        <span class="badge ${cls}"><span class="dot"></span>${esc(st)}</span>
+      </div>
+      ${p.lastUpdate?`<div class="upd">Updated ${esc(fmtWhen(p.lastUpdate))}${p.lastLocation?" &middot; "+esc(p.lastLocation):""}</div>`:""}
+      ${p.eta?`<div class="upd">Expected delivery ${esc(fmtWhen(p.eta))}</div>`:""}
+      ${p.mobile?`<div class="upd">Mobile for APSRTC lookup: ${esc(p.mobile)}</div>`:""}
+      <div class="actions">
+        ${p.trackUrl?`<a href="${esc(p.trackUrl)}" target="_blank" rel="noopener">Track on courier site</a>`:""}
+        <button id="shareBtn">Share</button>
+        <button class="danger" id="removeBtn">Remove</button>
+      </div>
+    </div>
+    ${p.note?`<div style="margin:10px 0 0;padding:10px 12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;line-height:1.45">${esc(p.note)}</div>`:""}
+    ${events.length?`<div class="timeline">${events.map(e=>`
+      <div class="tl"><div class="dot2"></div><div>
+        <div class="act">${esc(e.activity||"-")}</div>
+        <div class="sub">${esc(fmtWhen(e.date))}${e.location?" &middot; "+esc(e.location):""}</div>
+      </div></div>`).join("")}</div>`
+    :`<div class="timeline"><div class="tl"><div class="dot2"></div><div>
+        <div class="act">${esc(p.status||"Added")}</div>
+        <div class="sub">${p.source==="manual"?"Open the courier site for the live scan history.":"No scan events yet."}</div>
+      </div></div></div>`}
+  `;
+  document.getElementById("tab-parcels").classList.add("hidden");
+  document.getElementById("tab-shop").classList.add("hidden");
+  document.getElementById("view-detail").classList.remove("hidden");
+  document.querySelectorAll(".tabbar button").forEach(b=>b.classList.remove("active"));
+
+  document.getElementById("backBtn").onclick=()=>{ showTab("parcels"); };
+  const rb=document.getElementById("removeBtn");
+  if(rb) rb.onclick=()=>{ saved=saved.filter(x=>x.number!==num); persist(); renderList(); showTab("parcels"); toast("Removed"); };
+  const sb=document.getElementById("shareBtn");
+  if(sb) sb.onclick=async()=>{
+    const url=parcelLink(p);
+    const text=`Track parcel ${p.number}${p.status?" - "+p.status:""}`;
+    if(navigator.share){ try{ await navigator.share({title:"Parcel "+p.number,text,url}); }catch(e){} }
+    else { try{ await navigator.clipboard.writeText(text+" "+url); toast("Copied to clipboard"); }catch(e){ toast(text); } }
+  };
+  try{ history.replaceState(null, "", parcelLink(p)); }catch(e){}
+  window.scrollTo({top:0});
+}
+
+function showTab(name){
+  document.getElementById("view-detail").classList.add("hidden");
+  document.getElementById("tab-parcels").classList.toggle("hidden", name!=="parcels");
+  document.getElementById("tab-shop").classList.toggle("hidden", name!=="shop");
+  document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("active", b.dataset.tab===name));
+  window.scrollTo({top:0});
+}
+
+/* ============================ promos + ads ============================ */
+function renderPromos(){
+  document.getElementById("promos").innerHTML=CONFIG.stores.map(s=>`
+    <div class="promo ${s.cls}">
+      <span class="tag">${esc(s.tag)}</span>
+      <h3>${esc(s.name)}</h3>
+      <p>${esc(s.desc)}</p>
+      <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.cta)} &rarr;</a>
+    </div>`).join("");
+}
+function adsConfigured(){
+  const c = CONFIG.adSenseClient || "";
+  return c.startsWith("ca-pub-") && !c.includes("XXXX");
+}
+function renderAds(){
+  const configured = adsConfigured();
+  const slots = CONFIG.adSlots || {};
+
+  const place = (el, slot) => {
+    if (!el) return;
+    if (!configured){
+      el.innerHTML = `<div class="ad-ph"><div><b>Google AdSense</b><br>Add your publisher ID in CONFIG to show ads.</div></div>`;
+    } else if (slot){
+      el.innerHTML = `<ins class="adsbygoogle" style="display:block"
+        data-ad-client="${esc(CONFIG.adSenseClient)}" data-ad-slot="${esc(slot)}"
+        data-ad-format="auto" data-full-width-responsive="true"></ins>`;
+    } else {
+      el.innerHTML = "";   // Auto ads will place ads automatically
+    }
+  };
+  place(document.getElementById("ad-top"), slots.top);
+  place(document.getElementById("ad-bottom"), slots.bottom);
+
+  if (!configured) return;
+
+  // One AdSense loader powers BOTH Auto ads and the manual slots above.
+  if (!document.querySelector("script[data-adsense]")){
+    const m = document.createElement("meta");
+    m.name = "google-adsense-account";
+    m.content = CONFIG.adSenseClient;
+    document.head.appendChild(m);
+
+    const s = document.createElement("script");
+    s.async = true;
+    s.setAttribute("data-adsense", "1");
+    s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(CONFIG.adSenseClient);
+    s.crossOrigin = "anonymous";
+    document.head.appendChild(s);
+    s.onload = () => {
+      document.querySelectorAll("ins.adsbygoogle").forEach(() => {
+        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
+      });
+    };
+  }
+}
+
+/* ============================ courier select ============================ */
+function fillCourierSelect(){
+  const sel=document.getElementById("courierSelect");
+  const names=CARRIERS.map(c=>c.name).filter((n,i,a)=>a.indexOf(n)===i);
+  sel.innerHTML=`<option>Auto-detect</option>`+names.map(n=>`<option>${esc(n)}</option>`).join("");
+}
+
+/* ============================ boot ============================ */
+async function boot(){
+  loadSaved(); fillCourierSelect(); renderPromos(); renderAds();
+  await loadPublished();
+  renderList();
+  refreshSaved();
+
+  // Open straight onto a parcel if the URL names one.
+  const dl = deepLinkParams();
+  if(dl.num){
+    let override = "Auto-detect";
+    if(dl.courier){
+      const hit = CARRIERS.find(c => c.name.toLowerCase() === dl.courier.toLowerCase()) ||
+                  CARRIERS.find(c => TM_CODES[c.name] === dl.courier.toLowerCase());
+      if(hit) override = hit.name;
+    }
+    await trackNumber(dl.num, override);
+  }
+
+  const numInput=document.getElementById("numInput");
+  numInput.addEventListener("input",()=>{
+    const d=detectCarrier(numInput.value);
+    const note=document.getElementById("detectNote");
+    if(numInput.value.trim() && d){ note.className="note"; note.textContent="Detected courier: "+d.name+" (best guess - change it if wrong)."; }
+    else if(numInput.value.trim()){ note.className="note warn"; note.textContent="Courier not recognised - pick one, or leave as Auto-detect."; }
+    else { note.textContent=""; }
+  });
+
+  // APSRTC needs the sender's or receiver's mobile number as well as the AWB.
+  const mob = document.getElementById("mobileInput");
+  const syncMobileField = () => {
+    const isApsrtc = document.getElementById("courierSelect").value === "APSRTC Cargo";
+    mob.hidden = !isApsrtc;
+    if(!isApsrtc) mob.value = "";
+  };
+  document.getElementById("courierSelect").addEventListener("change", syncMobileField);
+  syncMobileField();
+
+  /* ---------- ask assistant: shown only when the server has a Sarvam key ---------- */
+  (function initAsk(){
+    const btn = document.getElementById("askBtn");
+    const panel = document.getElementById("askPanel");
+    const input = document.getElementById("askInput");
+    const send = document.getElementById("askSend");
+    const out = document.getElementById("askOut");
+    const close = document.getElementById("askClose");
+    if(!btn || !CONFIG.liveApi) return;
+
+    fetch(CONFIG.liveApi + "/?diag=1", {cache:"no-store"})
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if(j && j.providers && j.providers.chat) btn.classList.add("show"); })
+      .catch(()=>{});
+
+    btn.addEventListener("click", () => { panel.classList.add("show"); input.focus(); });
+    close.addEventListener("click", () => panel.classList.remove("show"));
+
+    async function ask(){
+      const q = input.value.trim();
+      if(!q) return;
+      send.disabled = true;
+      out.textContent = "Thinking…";
+      try{
+        const r = await fetch(CONFIG.liveApi + "/?chat=" + encodeURIComponent(q), {cache:"no-store"});
+        const j = await r.json().catch(()=>({}));
+        if(r.ok && j.answer){
+          out.textContent = j.answer;
+          if(j.tracking_number) input.dataset.last = j.tracking_number;
+        } else if(j.code === "rate_limited"){
+          out.textContent = "Too many questions just now — wait a minute and try again.";
+        } else {
+          out.textContent = "The assistant is unavailable right now. You can still track the number above.";
+        }
+      }catch(e){
+        out.textContent = "Could not reach the assistant. Check your connection and try again.";
+      }finally{ send.disabled = false; }
+    }
+    send.addEventListener("click", ask);
+    input.addEventListener("keydown", e => { if(e.key === "Enter") ask(); });
+  })();
+
+  document.getElementById("addForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    trackNumber(numInput.value, document.getElementById("courierSelect").value).then(()=>{
+      if(saved.length && saved[0].number){
+        numInput.value=""; document.getElementById("detectNote").textContent="";
+        if(mob && !mob.hidden){ mob.value=""; }
+      }
+    });
+  });
+
+  document.getElementById("list").addEventListener("click",e=>{
+    const c=e.target.closest(".card[data-num]"); if(!c) return;
+    showDetail(c.getAttribute("data-num"));
+  });
+
+  document.querySelectorAll(".tabbar button").forEach(b=>{
+    b.addEventListener("click",()=>showTab(b.dataset.tab));
+  });
+
+  // PWA install prompt
+  let deferred=null;
+  window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferred=e; document.getElementById("installBtn").hidden=false; });
+  document.getElementById("installBtn").addEventListener("click",async()=>{
+    if(!deferred){ toast("Use your browser menu > Add to Home screen"); return; }
+    deferred.prompt(); await deferred.userChoice; deferred=null; document.getElementById("installBtn").hidden=true;
+  });
+
+  // Service worker: keep the app current without anyone pressing refresh.
+  //  - update() on every open and whenever the tab becomes visible again
+  //  - when a new version takes control, reload once so it is used immediately
+  if("serviceWorker" in navigator){
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(!hadController || reloading) return;   // first install: no reload needed
+      reloading = true;
+      location.reload();
+    });
+
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      reg.update();
+      document.addEventListener("visibilitychange", () => {
+        if(document.visibilityState === "visible") reg.update().catch(()=>{});
+      });
+      // Long-lived open tabs: check every 15 minutes.
+      setInterval(() => { reg.update().catch(()=>{}); }, 15 * 60 * 1000);
+    }).catch(()=>{});
+  }
+}
+boot();
+</script>
 </body>
 </html>
