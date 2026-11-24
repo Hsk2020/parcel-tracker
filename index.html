@@ -190,6 +190,9 @@
   .fmt-table th,.fmt-table td{border:1px solid #dde4e7;padding:7px 9px;text-align:left}
   .fmt-table th{background:#f0f5f3;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#5b6572}
   .fmt-table td:nth-child(2),.fmt-table td:nth-child(3){font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .advice{margin:10px 0 0;padding:11px 13px;border-radius:12px;font-size:13.5px;line-height:1.5}
+  .advice.warn{background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12}
+  .advice.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
   .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0 4px}
   .gcard{display:block;padding:10px 12px;border:1px solid #dde4e7;border-radius:10px;
     background:#f7fafb;color:var(--brand-dark);text-decoration:none;font-size:13px;font-weight:600}
@@ -398,6 +401,7 @@
   <!-- ===== view: detail ===== -->
   <section id="view-detail" class="hidden">
     <button class="back" id="backBtn">&#8592; Back</button>
+    <div id="detailAdvice" class="advice hidden"></div>
     <div id="detail"></div>
   </section>
 
@@ -806,6 +810,28 @@ function showDetail(num){
         <div class="sub">${p.source==="manual"?"Open the courier site for the live scan history.":"No scan events yet."}</div>
       </div></div></div>`}
   `;
+  /* NDR / RTO guidance - these two statuses need action, not patience. */
+  const stL = String(p.status || "").toLowerCase();
+  const isNdr = /attempt|ndr|undeliver|refused|not available/.test(stL);
+  const isRto = /rto|return|returned/.test(stL);
+  const adv = document.getElementById("detailAdvice");
+  if (adv) {
+    if (isNdr) {
+      adv.className = "advice warn";
+      adv.innerHTML = "<b>Delivery was attempted and failed.</b> The courier will usually retry once, then return the parcel. Contact the seller or your nearest " +
+        esc(p.courier || "courier") + " hub <b>within 24 hours</b> to request a re-attempt, or the parcel becomes an RTO.";
+    } else if (isRto) {
+      adv.className = "advice warn";
+      adv.innerHTML = "<b>This parcel is returning to the sender.</b> Delivery was not completed, so it is travelling back. Contact the seller to arrange a fresh dispatch; a return in progress cannot be redirected to the original address.";
+    } else if (p.delivered) {
+      adv.className = "advice ok";
+      adv.innerHTML = "<b>Delivered.</b> If you do not have the parcel, check the reception desk or neighbours, then ask the sender for the proof of delivery - it records who accepted it and when.";
+    } else {
+      adv.className = "advice hidden";
+      adv.innerHTML = "";
+    }
+  }
+
   document.getElementById("tab-parcels").classList.add("hidden");
   document.getElementById("tab-shop").classList.add("hidden");
   document.getElementById("view-detail").classList.remove("hidden");
