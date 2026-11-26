@@ -22,6 +22,28 @@
       "package-lock.json",
       "requirements.txt"
     ],
+    "redirects": [
+      {
+        "source": "/about",
+        "destination": "/about.html",
+        "type": 301
+      },
+      {
+        "source": "/privacy",
+        "destination": "/privacy.html",
+        "type": 301
+      },
+      {
+        "source": "/contact",
+        "destination": "/contact.html",
+        "type": 301
+      },
+      {
+        "source": "/terms",
+        "destination": "/terms.html",
+        "type": 301
+      }
+    ],
     "headers": [
       {
         "source": "**/*.html",
